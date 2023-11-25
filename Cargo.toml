@@ -1,18 +1,2 @@
-[package]
-name = "cyu-calendar"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-async-trait = "0.1"
-axum = "0.6"
-itertools = "0.12"
-lazy_static = "1.4"
-regex = "1.10"
-reqwest = { version = "0.11", features = ["json"] }
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-tokio = { version = "1", features = ["full"] }
-tower-cookies = "0.9"
+[workspace]
+members = ["cyu-api", "cyu-fetcher"]
