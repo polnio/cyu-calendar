@@ -3,13 +3,12 @@ use super::constants::APP_ID;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::sync::Mutex;
 
 pub static SECRET: Lazy<Secret> = Lazy::new(|| Secret::new());
 
 struct LibsecretSchema(libsecret::Schema);
 unsafe impl Send for LibsecretSchema {}
-// unsafe impl Sync for LibsecretSchema {}
+unsafe impl Sync for LibsecretSchema {}
 impl From<libsecret::Schema> for LibsecretSchema {
     fn from(schema: libsecret::Schema) -> Self {
         Self(schema)
@@ -23,7 +22,7 @@ impl Deref for LibsecretSchema {
 }
 
 pub struct Secret {
-    schema: Mutex<LibsecretSchema>,
+    schema: LibsecretSchema,
 }
 
 impl Secret {
@@ -31,14 +30,13 @@ impl Secret {
         let attributes = HashMap::from([("name", libsecret::SchemaAttributeType::String)]);
         let schema = libsecret::Schema::new(APP_ID, libsecret::SchemaFlags::NONE, attributes);
         Self {
-            schema: Mutex::new(schema.into()),
+            schema: schema.into(),
         }
     }
 
     async fn get(&self, key: &str) -> Option<String> {
-        let schema = self.schema.lock().unwrap();
         let attributes = HashMap::from([("name", key)]);
-        let value = libsecret::password_lookup_future(Some(&schema), attributes).await;
+        let value = libsecret::password_lookup_future(Some(&self.schema), attributes).await;
         match value {
             Ok(value) => value.map(|value| value.to_string()),
             Err(_) => {
@@ -48,10 +46,9 @@ impl Secret {
         }
     }
     async fn set(&self, key: &str, value: String) {
-        let schema = self.schema.lock().unwrap();
         let attributes = HashMap::from([("name", key)]);
         let result = libsecret::password_store_future(
-            Some(&schema),
+            Some(&self.schema),
             attributes,
             Some(libsecret::COLLECTION_DEFAULT),
             key,
@@ -64,9 +61,8 @@ impl Secret {
     }
 
     async fn remove(&self, key: &str) {
-        let schema = self.schema.lock().unwrap();
         let attributes = HashMap::from([("name", key)]);
-        let result = libsecret::password_clear_future(Some(&schema), attributes).await;
+        let result = libsecret::password_clear_future(Some(&self.schema), attributes).await;
         if result.is_err() {
             println!("Failed to clear secret");
         }
