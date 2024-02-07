@@ -1,15 +1,17 @@
+use crate::errors::Error;
 use itertools::Itertools;
+use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
 
-use crate::errors::Error;
-
-lazy_static::lazy_static! {
-    static ref SECURITY_TOKEN_REGEX: Regex = Regex::new(r#"<input name="__RequestVerificationToken" type="hidden" value="([^"]+)" />"#).unwrap();
-    static ref FEDERATION_ID_REGEX: Regex = Regex::new(r#"var federationIdStr = '(.*?)';"#).unwrap();
-}
+static SECURITY_TOKEN_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r#"<input name="__RequestVerificationToken" type="hidden" value="([^"]+)" />"#)
+        .unwrap()
+});
+static FEDERATION_ID_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r#"var federationIdStr = '(.*?)';"#).unwrap());
 
 pub async fn login(
     requester: &reqwest::Client,
