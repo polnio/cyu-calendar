@@ -4,7 +4,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use cyu_fetcher::Fetcher;
+use cyu_fetcher::{calendar::ColorBy, Fetcher};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -27,6 +27,7 @@ async fn get_calendar(
             start: query.start,
             end: query.end,
             view: query.view,
+            color_by: ColorBy::EventCategory,
         })
         .await
         .map_err(|_| Error::RemoteError)?;

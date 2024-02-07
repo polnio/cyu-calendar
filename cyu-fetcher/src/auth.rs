@@ -4,6 +4,8 @@ use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
 
+use crate::errors::Error;
+
 lazy_static::lazy_static! {
     static ref SECURITY_TOKEN_REGEX: Regex = Regex::new(r#"<input name="__RequestVerificationToken" type="hidden" value="([^"]+)" />"#).unwrap();
     static ref FEDERATION_ID_REGEX: Regex = Regex::new(r#"var federationIdStr = '(.*?)';"#).unwrap();
@@ -13,23 +15,23 @@ pub async fn login(
     requester: &reqwest::Client,
     username: String,
     password: String,
-) -> Result<String, ()> {
+) -> Result<String, Error> {
     let page_response = requester
         .get("https://services-web.cyu.fr/calendar/LdapLogin")
         .send()
         .await
-        .map_err(|_| ())?;
+        .map_err(|_| Error::Remote)?;
     let page_cookie = page_response
         .headers()
         .get("set-cookie")
         .map(|cookie| cookie.clone())
-        .ok_or(())?;
-    let plain_text = page_response.text().await.map_err(|_| ())?;
+        .ok_or(Error::Remote)?;
+    let plain_text = page_response.text().await.map_err(|_| Error::Remote)?;
     let token = SECURITY_TOKEN_REGEX
         .captures(&plain_text)
         .and_then(|captures| captures.get(1))
         .map(|token| token.as_str().to_string())
-        .ok_or(())?;
+        .ok_or(Error::Remote)?;
 
     let mut remote_payload = HashMap::new();
     remote_payload.insert("Name", username);
@@ -43,7 +45,7 @@ pub async fn login(
         .header("Cookie", page_cookie)
         .send()
         .await
-        .map_err(|_| ())?;
+        .map_err(|_| Error::Remote)?;
     let login_cookie = login_response
         .headers()
         .get_all("set-cookie")
@@ -61,21 +63,24 @@ pub struct InfosResponse {
     pub display_name: String,
 }
 
-pub async fn get_infos(requester: &reqwest::Client, token: String) -> Result<InfosResponse, ()> {
+pub async fn get_infos(requester: &reqwest::Client, token: String) -> Result<InfosResponse, Error> {
     let federation_id_response = requester
         .get("https://services-web.cyu.fr/calendar")
         .header("Cookie", token.clone())
         .send()
         .await
-        .map_err(|_| ())?;
+        .map_err(|_| Error::Remote)?;
 
-    let plain_text = federation_id_response.text().await.map_err(|_| ())?;
+    let plain_text = federation_id_response
+        .text()
+        .await
+        .map_err(|_| Error::Remote)?;
 
     let federation_id = FEDERATION_ID_REGEX
         .captures(&plain_text)
         .and_then(|captures| captures.get(1))
         .map(|federation_id| federation_id.as_str().to_string())
-        .ok_or(())?;
+        .ok_or(Error::Unauthorized)?;
 
     let name_response = requester
         .post("https://services-web.cyu.fr/calendar/Home/LoadDisplayNames")
@@ -87,13 +92,13 @@ pub async fn get_infos(requester: &reqwest::Client, token: String) -> Result<Inf
         .header("Cookie", token)
         .send()
         .await
-        .map_err(|_| ())?;
+        .map_err(|_| Error::Remote)?;
 
     let infos = name_response
         .json::<Vec<InfosResponse>>()
         .await
-        .map_err(|_| ())
-        .and_then(|infos| infos.into_iter().next().ok_or(()))?;
+        .map_err(|_| Error::Remote)
+        .and_then(|infos| infos.into_iter().next().ok_or(Error::Remote))?;
 
     Ok(infos)
 }

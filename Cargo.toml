@@ -1,2 +1,2 @@
 [workspace]
-members = ["cyu-api", "cyu-fetcher"]
+members = ["cyu-fetcher", "cyu-api", "cyu-gtk"]
