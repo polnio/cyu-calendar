@@ -6,13 +6,6 @@ use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
 
-static SECURITY_TOKEN_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r#"<input name="__RequestVerificationToken" type="hidden" value="([^"]+)" />"#)
-        .unwrap()
-});
-static FEDERATION_ID_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"var federationIdStr = '(.*?)';"#).unwrap());
-
 pub async fn login(
     requester: &reqwest::Client,
     username: String,
@@ -29,6 +22,11 @@ pub async fn login(
         .map(|cookie| cookie.clone())
         .ok_or(Error::Remote)?;
     let plain_text = page_response.text().await.map_err(|_| Error::Remote)?;
+
+    static SECURITY_TOKEN_REGEX: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"<input name="__RequestVerificationToken" type="hidden" value="([^"]+)" />"#)
+            .unwrap()
+    });
     let token = SECURITY_TOKEN_REGEX
         .captures(&plain_text)
         .and_then(|captures| captures.get(1))
@@ -78,6 +76,8 @@ pub async fn get_infos(requester: &reqwest::Client, token: String) -> Result<Inf
         .await
         .map_err(|_| Error::Remote)?;
 
+    static FEDERATION_ID_REGEX: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r#"var federationIdStr = '(.*?)';"#).unwrap());
     let federation_id = FEDERATION_ID_REGEX
         .captures(&plain_text)
         .and_then(|captures| captures.get(1))
