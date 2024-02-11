@@ -4,7 +4,7 @@ use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::ops::Deref;
 
-pub static SECRET: Lazy<Secret> = Lazy::new(|| Secret::new());
+pub const SECRET: Lazy<Secret> = Lazy::new(|| Secret::new());
 
 struct LibsecretSchema(libsecret::Schema);
 unsafe impl Send for LibsecretSchema {}

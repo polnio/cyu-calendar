@@ -1,7 +1,7 @@
 use crate::utils::{config::CONFIG, secret::SECRET, FETCHER};
 use std::sync::RwLock;
 
-pub static AUTH: RwLock<Option<Auth>> = RwLock::new(None);
+pub const AUTH: RwLock<Option<Auth>> = RwLock::new(None);
 
 pub enum Error {
     Remote,

@@ -3,7 +3,7 @@ use anyhow::Result;
 use once_cell::sync::Lazy;
 use std::sync::RwLock;
 
-pub static CONFIG: Lazy<RwLock<Config>> = Lazy::new(|| {
+pub const CONFIG: Lazy<RwLock<Config>> = Lazy::new(|| {
     let dirs =
         xdg::BaseDirectories::with_prefix(APP_SHORT_ID).expect("failed to get xdg directories");
     let file_path = dirs

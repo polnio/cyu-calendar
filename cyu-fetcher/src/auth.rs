@@ -6,11 +6,11 @@ use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
 
-static SECURITY_TOKEN_REGEX: Lazy<Regex> = Lazy::new(|| {
+const SECURITY_TOKEN_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r#"<input name="__RequestVerificationToken" type="hidden" value="([^"]+)" />"#)
         .unwrap()
 });
-static FEDERATION_ID_REGEX: Lazy<Regex> =
+const FEDERATION_ID_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"var federationIdStr = '(.*?)';"#).unwrap());
 
 pub async fn login(
