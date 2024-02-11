@@ -4,7 +4,7 @@ use regex::Regex;
 
 pub type Event = GetCalendarResponseElement;
 
-pub const LINEBREAKS_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\r\n|<br />)+").unwrap());
+pub static LINEBREAKS_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\r\n|<br />)+").unwrap());
 
 pub fn parse_description(description: &String) -> String {
     html_escape::decode_html_entities(LINEBREAKS_REGEX.replace_all(description, "\n").trim())
