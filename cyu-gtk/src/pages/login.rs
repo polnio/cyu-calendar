@@ -1,15 +1,17 @@
-use crate::utils::auth;
+use crate::utils::{auth, config::CONFIG, secret::SECRET};
 use relm4::{adw::prelude::*, prelude::*};
 
 pub struct LoginPage {
     username_entry: adw::EntryRow,
     password_entry: adw::PasswordEntryRow,
+    save_password_switch: adw::SwitchRow,
     is_processing: bool,
 }
 
 #[derive(Debug)]
 pub enum LoginPageInput {
     Submit,
+    ToggleSavePassword,
 }
 
 #[derive(Debug)]
@@ -49,6 +51,12 @@ impl Component for LoginPage {
                         set_title: "Mot de passe",
                         connect_activate => LoginPageInput::Submit,
                     },
+                    #[local_ref]
+                    save_password_switch -> adw::SwitchRow {
+                        set_title: "Sauvegarder le mot de passe",
+                        set_active: CONFIG.read().unwrap().save_credentials(),
+                        connect_active_notify => LoginPageInput::ToggleSavePassword,
+                    },
                     gtk::Button {
                         set_label: "Se connecter",
                         #[watch]
@@ -68,9 +76,12 @@ impl Component for LoginPage {
     ) -> ComponentParts<Self> {
         let username_entry = adw::EntryRow::default();
         let password_entry = adw::PasswordEntryRow::default();
+        let save_password_switch = adw::SwitchRow::default();
+
         let model = Self {
             username_entry: username_entry.clone(),
             password_entry: password_entry.clone(),
+            save_password_switch: save_password_switch.clone(),
             is_processing: false,
         };
         let widgets = view_output!();
@@ -80,6 +91,13 @@ impl Component for LoginPage {
 
     fn update(&mut self, msg: Self::Input, sender: ComponentSender<Self>, _root: &Self::Root) {
         match msg {
+            LoginPageInput::ToggleSavePassword => {
+                let is_active = self.save_password_switch.is_active();
+                if !is_active {
+                    gtk::glib::spawn_future_local(SECRET.remove_auth());
+                }
+                CONFIG.write().unwrap().set_save_credentials(is_active);
+            }
             LoginPageInput::Submit => {
                 self.is_processing = true;
 
@@ -91,7 +109,7 @@ impl Component for LoginPage {
                     let command = match auth_result {
                         Ok(_) => LoginPageMessage::LoggedIn,
                         Err(auth::Error::BadCredentials) => LoginPageMessage::Unauthorized,
-                        _ => LoginPageMessage::Error("An error occurred".into()),
+                        Err(_) => LoginPageMessage::Error("An error occurred".into()),
                     };
                     sender
                         .command_sender()
@@ -118,7 +136,7 @@ impl Component for LoginPage {
                 println!("Bad credentials");
             }
             LoginPageMessage::Error(error) => {
-                println!("Error: {}", error);
+                eprintln!("Error: {}", error);
             }
         }
         self.is_processing = false;

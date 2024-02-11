@@ -40,7 +40,7 @@ impl Secret {
         match value {
             Ok(value) => value.map(|value| value.to_string()),
             Err(_) => {
-                println!("Failed to get secret");
+                eprintln!("Failed to get secret");
                 None
             }
         }
@@ -56,7 +56,7 @@ impl Secret {
         )
         .await;
         if result.is_err() {
-            println!("Failed to store secret");
+            eprintln!("Failed to store secret");
         }
     }
 
@@ -64,18 +64,23 @@ impl Secret {
         let attributes = HashMap::from([("name", key)]);
         let result = libsecret::password_clear_future(Some(&self.schema), attributes).await;
         if result.is_err() {
-            println!("Failed to clear secret");
+            eprintln!("Failed to clear secret");
         }
     }
 
     pub async fn get_auth(&self) -> Option<Auth> {
-        let token = self.get("token").await;
-        let id = self.get("id").await;
-        let name = self.get("name").await;
-        token
-            .zip(id)
-            .zip(name)
-            .map(|((token, id), name)| Auth { token, id, name })
+        let token = self.get("token").await?;
+        let id = self.get("id").await?;
+        let name = self.get("name").await?;
+        let username = self.get("username").await?;
+        let password = self.get("password").await?;
+        Some(Auth {
+            token,
+            id,
+            name,
+            username,
+            password,
+        })
     }
 
     pub async fn set_auth(&self, auth: Auth) {

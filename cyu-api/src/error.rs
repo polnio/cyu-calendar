@@ -19,7 +19,7 @@ pub enum Error {
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
         #[cfg(debug_assertions)]
-        println!("{:?}", self);
+        eprintln!("{:?}", self);
 
         (StatusCode::INTERNAL_SERVER_ERROR, "Error").into_response()
     }

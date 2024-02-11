@@ -45,19 +45,18 @@ impl From<CalendarPageOutput> for AppInput {
 }
 
 #[relm4::component(async, pub)]
-impl AsyncComponent for App {
+impl SimpleAsyncComponent for App {
     type Init = ();
     type Input = AppInput;
     type Output = ();
-    type CommandOutput = ();
 
     view! {
         adw::ApplicationWindow {
             gtk::Stack {
+                add_child: calendar_page,
+                add_child: login_page,
                 #[watch]
                 set_visible_child: model.current_page().as_ref(),
-                add_child: login_page,
-                add_child: calendar_page,
             }
         },
     }
@@ -105,16 +104,11 @@ impl AsyncComponent for App {
         AsyncComponentParts { model, widgets }
     }
 
-    async fn update(
-        &mut self,
-        msg: Self::Input,
-        _sender: AsyncComponentSender<App>,
-        _root: &Self::Root,
-    ) {
+    async fn update(&mut self, msg: Self::Input, _sender: AsyncComponentSender<App>) {
         match msg {
             AppInput::LoggedIn => {
                 self.is_authed = true;
-                self.calendar_page.sender().emit(CalendarPageInput::Refresh);
+                self.calendar_page.emit(CalendarPageInput::Refresh);
             }
             AppInput::LoggedOut => {
                 self.is_authed = false;

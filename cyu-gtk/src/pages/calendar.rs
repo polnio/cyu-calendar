@@ -7,6 +7,7 @@ use crate::widgets::calendar_event_details::{
     CalendarEventDetailsWidget, CalendarEventDetailsWidgetInput,
 };
 use adw::BreakpointCondition;
+use async_recursion::async_recursion;
 use cyu_fetcher::calendar::{CalendarView, ColorBy, GetCalendarQuery};
 use cyu_fetcher::errors::Error;
 use relm4::factory::FactoryVecDeque;
@@ -17,12 +18,15 @@ pub struct CalendarPage {
     day_selector_widget: gtk::Calendar,
     event_details_widget: Controller<CalendarEventDetailsWidget>,
     split_view: adw::NavigationSplitView,
+
+    is_retrying: bool,
 }
 
 impl CalendarPage {
+    #[async_recursion(?Send)]
     async fn refresh(&mut self, sender: &AsyncComponentSender<Self>) {
-        let auth = AUTH.read().unwrap();
-        let Some(auth) = auth.as_ref() else {
+        let auth_lock = AUTH.read().unwrap();
+        let Some(auth) = auth_lock.as_ref() else {
             return;
         };
 
@@ -43,6 +47,8 @@ impl CalendarPage {
             })
             .await;
 
+        drop(auth_lock);
+
         match calendar {
             Ok(mut calendar) => {
                 let event_widgets = &mut self.event_widgets.guard();
@@ -53,13 +59,27 @@ impl CalendarPage {
                 }
             }
             Err(Error::Unauthorized) => {
-                auth::logout().await;
-                sender
-                    .output(CalendarPageOutput::LoggedOut)
-                    .expect("Failed to send logout signal");
+                if !self.is_retrying {
+                    self.is_retrying = true;
+                    let result = auth::refetch().await;
+                    if result.is_err() {
+                        auth::logout().await;
+                        sender
+                            .output(CalendarPageOutput::LoggedOut)
+                            .expect("Failed to send logout signal");
+                        return;
+                    }
+                    self.refresh(sender).await;
+                    self.is_retrying = false;
+                } else {
+                    auth::logout().await;
+                    sender
+                        .output(CalendarPageOutput::LoggedOut)
+                        .expect("Failed to send logout signal");
+                }
             }
             Err(err) => {
-                println!("Failed to get calendar: {:?}", err);
+                eprintln!("Failed to get calendar: {:?}", err);
             }
         }
     }
@@ -85,11 +105,10 @@ pub enum CalendarPageOutput {
 }
 
 #[relm4::component(async, pub)]
-impl AsyncComponent for CalendarPage {
+impl SimpleAsyncComponent for CalendarPage {
     type Init = ();
     type Input = CalendarPageInput;
     type Output = CalendarPageOutput;
-    type CommandOutput = ();
 
     view! {
         adw::BreakpointBin {
@@ -156,6 +175,8 @@ impl AsyncComponent for CalendarPage {
             event_details_widget,
             day_selector_widget: day_selector_widget.clone(),
             split_view: split_view.clone(),
+
+            is_retrying: false,
         };
         model.refresh(&sender).await;
 
@@ -170,20 +191,13 @@ impl AsyncComponent for CalendarPage {
         AsyncComponentParts { model, widgets }
     }
 
-    async fn update(
-        &mut self,
-        msg: Self::Input,
-        sender: AsyncComponentSender<Self>,
-        _root: &Self::Root,
-    ) {
+    async fn update(&mut self, msg: Self::Input, sender: AsyncComponentSender<Self>) {
         match msg {
             CalendarPageInput::LogOut => {
-                gtk::glib::spawn_future_local(async move {
-                    auth::logout().await;
-                    sender
-                        .output(CalendarPageOutput::LoggedOut)
-                        .expect("failed to send logout signal");
-                });
+                auth::logout().await;
+                sender
+                    .output(CalendarPageOutput::LoggedOut)
+                    .expect("failed to send logout signal");
             }
             CalendarPageInput::Refresh => {
                 self.refresh(&sender).await;

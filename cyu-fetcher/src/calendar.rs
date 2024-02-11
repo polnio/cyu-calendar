@@ -152,8 +152,6 @@ pub async fn get_calendar(
         color_by: query.color_by,
     };
 
-    println!("{}", serde_json::to_string(&remote_payload).unwrap());
-
     let response = requester
         .post("https://services-web.cyu.fr/calendar/Home/GetCalendarData")
         .form(&remote_payload)
@@ -176,8 +174,6 @@ pub async fn get_calendar(
             eprintln!("{:#?}", err);
             Error::Remote
         })?;
-
-    // println!("{:#?}", calendar);
 
     Ok(calendar)
 }
