@@ -163,24 +163,21 @@ impl SimpleAsyncComponent for CalendarPage {
         root: Self::Root,
         sender: AsyncComponentSender<Self>,
     ) -> AsyncComponentParts<Self> {
-        let event_widgets = FactoryVecDeque::builder()
-            .launch_default()
-            .forward(sender.input_sender(), CalendarPageInput::from);
-        let event_details_widget = CalendarEventDetailsWidget::builder().launch(None).detach();
-        let day_selector_widget = gtk::Calendar::new();
-        let split_view = adw::NavigationSplitView::default();
-
         let mut model = Self {
-            event_widgets,
-            event_details_widget,
-            day_selector_widget: day_selector_widget.clone(),
-            split_view: split_view.clone(),
+            event_widgets: FactoryVecDeque::builder()
+                .launch_default()
+                .forward(sender.input_sender(), CalendarPageInput::from),
+            event_details_widget: CalendarEventDetailsWidget::builder().launch(None).detach(),
+            day_selector_widget: gtk::Calendar::new(),
+            split_view: adw::NavigationSplitView::default(),
 
             is_retrying: false,
         };
         model.refresh(&sender).await;
 
         let event_widgets = model.event_widgets.widget();
+        let split_view = model.split_view.clone();
+        let day_selector_widget = model.day_selector_widget.clone();
         let widgets = view_output!();
 
         let breakpoint =

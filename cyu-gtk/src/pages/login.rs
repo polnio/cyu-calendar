@@ -74,16 +74,16 @@ impl Component for LoginPage {
         root: &Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let username_entry = adw::EntryRow::default();
-        let password_entry = adw::PasswordEntryRow::default();
-        let save_password_switch = adw::SwitchRow::default();
-
         let model = Self {
-            username_entry: username_entry.clone(),
-            password_entry: password_entry.clone(),
-            save_password_switch: save_password_switch.clone(),
+            username_entry: adw::EntryRow::default(),
+            password_entry: adw::PasswordEntryRow::default(),
+            save_password_switch: adw::SwitchRow::default(),
             is_processing: false,
         };
+
+        let username_entry = model.username_entry.clone();
+        let password_entry = model.password_entry.clone();
+        let save_password_switch = model.save_password_switch.clone();
         let widgets = view_output!();
 
         ComponentParts { model, widgets }

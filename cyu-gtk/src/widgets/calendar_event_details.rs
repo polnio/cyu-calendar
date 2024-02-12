@@ -81,14 +81,15 @@ impl SimpleComponent for CalendarEventDetailsWidget {
         root: &Self::Root,
         _sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
-        let event_widget = adw::Clamp::default();
-        let no_event_widget = adw::StatusPage::default();
         let model = Self {
             event,
             stack_widget: root.clone(),
-            event_widget: event_widget.clone(),
-            no_event_widget: no_event_widget.clone(),
+            event_widget: adw::Clamp::default(),
+            no_event_widget: adw::StatusPage::default(),
         };
+
+        let event_widget = model.event_widget.clone();
+        let no_event_widget = model.no_event_widget.clone();
         let widgets = view_output!();
         widgets.root.set_visible_child(&model.no_event_widget);
         ComponentParts { model, widgets }

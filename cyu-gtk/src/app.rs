@@ -85,21 +85,18 @@ impl SimpleAsyncComponent for App {
     ) -> AsyncComponentParts<Self> {
         auth::init().await;
 
-        let is_authed = { AUTH.read().unwrap().is_some() };
-        let login_page = LoginPage::builder()
-            .launch(())
-            .forward(sender.input_sender(), AppInput::from);
-        let calendar_page = CalendarPage::builder()
-            .launch(())
-            .forward(sender.input_sender(), AppInput::from);
         let model = Self {
-            login_page,
-            calendar_page,
-            is_authed,
+            login_page: LoginPage::builder()
+                .launch(())
+                .forward(sender.input_sender(), AppInput::from),
+            calendar_page: CalendarPage::builder()
+                .launch(())
+                .forward(sender.input_sender(), AppInput::from),
+            is_authed: { AUTH.read().unwrap().is_some() },
         };
+
         let login_page = model.login_page.widget();
         let calendar_page = model.calendar_page.widget();
-
         let widgets = view_output!();
         AsyncComponentParts { model, widgets }
     }
