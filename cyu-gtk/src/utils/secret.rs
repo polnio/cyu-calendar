@@ -87,11 +87,15 @@ impl Secret {
         self.set("token", auth.token).await;
         self.set("id", auth.id).await;
         self.set("name", auth.name).await;
+        self.set("username", auth.username).await;
+        self.set("password", auth.password).await;
     }
 
     pub async fn remove_auth(&self) {
         self.remove("token").await;
         self.remove("id").await;
         self.remove("name").await;
+        self.remove("username").await;
+        self.remove("password").await;
     }
 }
