@@ -28,7 +28,8 @@ pub struct Secret {
 impl Secret {
     pub fn new() -> Self {
         let attributes = HashMap::from([("name", libsecret::SchemaAttributeType::String)]);
-        let schema = libsecret::Schema::new(APP_ID, libsecret::SchemaFlags::NONE, attributes);
+        let schema =
+            libsecret::Schema::new(APP_ID, libsecret::SchemaFlags::DONT_MATCH_NAME, attributes);
         Self {
             schema: schema.into(),
         }
