@@ -25,6 +25,7 @@ impl FactoryComponent for CalendarEventWidget {
 
     view! {
         root = gtk::Box {
+            add_css_class: "card",
             set_orientation: gtk::Orientation::Vertical,
             inline_css: &format!("border-left: 3px solid {}; padding-left: 10px;", self.event.background_color()),
             gtk::Label {

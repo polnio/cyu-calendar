@@ -138,6 +138,7 @@ impl SimpleAsyncComponent for CalendarPage {
                                 #[local_ref]
                                 event_widgets -> gtk::Box {
                                     set_orientation: gtk::Orientation::Vertical,
+                                    inline_css: "padding: 10px;",
                                     set_spacing: 10,
                                 }
                             }

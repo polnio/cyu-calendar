@@ -32,6 +32,8 @@ impl SimpleComponent for CalendarEventDetailsWidget {
             #[local_ref]
             event_widget -> adw::Clamp {
                 gtk::ListBox {
+                    set_valign: gtk::Align::Start,
+                    add_css_class: "boxed-list",
                     set_selection_mode: gtk::SelectionMode::None,
                     adw::ActionRow {
                         set_title: "Description",
@@ -60,7 +62,7 @@ impl SimpleComponent for CalendarEventDetailsWidget {
                     adw::ActionRow {
                         set_title: "Département",
                         #[watch]
-                        set_subtitle: model.event.as_ref().map(|event| event.department()).unwrap_or(&String::from("")),
+                        set_subtitle: model.event.as_ref().map(|event| event.department()).unwrap_or(&String::default()),
                         add_css_class: "property",
                     },
                     adw::ActionRow {
@@ -68,7 +70,7 @@ impl SimpleComponent for CalendarEventDetailsWidget {
                         #[watch]
                         set_visible: model.event.as_ref().and_then(|event| event.faculty().as_ref()).is_some(),
                         #[watch]
-                        set_subtitle: model.event.as_ref().and_then(|event| event.faculty().as_ref()).unwrap_or(&String::from("")),
+                        set_subtitle: model.event.as_ref().and_then(|event| event.faculty().as_ref()).unwrap_or(&String::default()),
                         add_css_class: "property",
                     },
                 }
