@@ -4,6 +4,14 @@ use serde::{Deserialize, Serialize};
 use serde_repr::*;
 use std::error::Error as _;
 
+pub const NB_LOCATIONS: usize = 3;
+pub const LOCATIONS_COORD: [[f64; 2]; NB_LOCATIONS] = [
+    [49.0349324, 2.0691315],
+    [49.03899, 2.0749315],
+    [49.043664, 2.0844198],
+];
+pub const LOCATIONS_NAME: [&str; NB_LOCATIONS] = ["PARC", "CHENES", "SAINT MARTIN"];
+
 #[derive(Serialize, Deserialize)]
 pub enum CalendarView {
     #[serde(rename(serialize = "agendaDay", deserialize = "day"))]
@@ -23,21 +31,6 @@ mod serde_date_time {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        /* let (day, time) = s.split_once('T').ok_or(Error::custom("Invalid date"))?;
-        let (year, month, day) = day
-            .split('-')
-            .map(|s| s.parse::<u32>().unwrap())
-            .collect_tuple()
-            .ok_or(Error::custom("Invalid date"))?;
-        let (hour, minute, second) = time
-            .split(':')
-            .map(|s| s.parse::<u32>().unwrap())
-            .collect_tuple()
-            .ok_or(Error::custom("Invalid date"))?;
-        let date = NaiveDate::from_ymd_opt(year as i32, month, day)
-            .ok_or(Error::custom("Invalid date"))?
-            .and_hms_opt(hour, minute, second)
-            .ok_or(Error::custom("Invalid date"))?; */
 
         let date = chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S")
             .map_err(|_| Error::custom("Invalid date"))?;
@@ -61,12 +54,6 @@ mod serde_option_date_time {
         D: Deserializer<'de>,
     {
         let s = Option::<String>::deserialize(deserializer)?;
-        /* let date = s.map(|s| {
-            Some(chrono::NaiveDateTime::parse_from_str(
-                &s,
-                "%Y-%m-%dT%H:%M:%S",
-            ))
-        }); */
         match s {
             Some(s) => Ok(Some(
                 chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S")
@@ -123,6 +110,15 @@ pub struct GetCalendarResponseElement {
     sites: Option<Vec<String>>,
     modules: Option<Vec<String>>,
 }
+impl GetCalendarResponseElement {
+    pub fn coords(&self) -> Option<&[f64; 2]> {
+        self.sites()
+            .as_ref()
+            .and_then(|sites| sites.first())
+            .and_then(|site| LOCATIONS_NAME.iter().position(|name| name == site))
+            .map(|location| LOCATIONS_COORD.get(location).unwrap())
+    }
+}
 pub type GetCalendarResponse = Vec<GetCalendarResponseElement>;
 
 #[derive(Serialize)]
@@ -159,7 +155,10 @@ pub async fn get_calendar(
         .header("Cookie", query.token)
         .send()
         .await
-        .map_err(|_| Error::Remote)?;
+        .map_err(|err| {
+            eprintln!("{}", err);
+            Error::Remote
+        })?;
 
     let calendar = response
         .json::<GetCalendarResponse>()
