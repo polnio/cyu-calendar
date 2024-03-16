@@ -1,2 +1,9 @@
 [workspace]
 members = ["cyu-fetcher", "cyu-api", "cyu-gtk"]
+resolver = "2"
+
+[workspace.package]
+version = "0.0.1"
+authors = ["Po Co"]
+description = "Cyu calendar with many frontends"
+edition = "2021"
