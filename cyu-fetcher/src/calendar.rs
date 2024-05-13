@@ -4,13 +4,14 @@ use serde::{Deserialize, Serialize};
 use serde_repr::*;
 use std::error::Error as _;
 
-pub const NB_LOCATIONS: usize = 3;
+pub const NB_LOCATIONS: usize = 4;
 pub const LOCATIONS_COORD: [[f64; 2]; NB_LOCATIONS] = [
-    [49.0349324, 2.0691315],
+    [49.0350203, 2.0695627],
     [49.03899, 2.0749315],
     [49.043664, 2.0844198],
+    [49.0326943, 2.0665439],
 ];
-pub const LOCATIONS_NAME: [&str; NB_LOCATIONS] = ["PARC", "CHENES", "SAINT MARTIN"];
+pub const LOCATIONS_NAME: [&str; NB_LOCATIONS] = ["PARC", "CHENES", "SAINT MARTIN", "PORT"];
 
 #[derive(Serialize, Deserialize)]
 pub enum CalendarView {
