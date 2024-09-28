@@ -39,7 +39,7 @@ impl FactoryComponent for CalendarEventWidget {
             gtk::Label {
                 set_halign: gtk::Align::Start,
                 set_ellipsize: gtk::pango::EllipsizeMode::End,
-                set_label: &parse_description(self.event.description()),
+                set_label: &self.event.description(),
             },
             add_controller = gtk::GestureClick {
                 connect_released[sender] => move |gesture, _, _, _| {
