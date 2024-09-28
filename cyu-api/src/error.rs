@@ -1,12 +1,14 @@
-use axum::{
-    http::StatusCode,
-    response::{IntoResponse, Response},
-};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
+use derive_more::From;
+use handlebars::RenderError;
 
 pub type Result<T> = core::result::Result<T, Error>;
 
-#[derive(Debug)]
+#[derive(Debug, From)]
 pub enum Error {
+    RenderTemplate(RenderError),
+
     RemoteError,
     BadCredentials,
 
