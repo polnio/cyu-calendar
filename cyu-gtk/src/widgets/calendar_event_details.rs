@@ -45,7 +45,7 @@ impl SimpleComponent for CalendarEventDetailsWidget {
                             #[watch]
                             set_subtitle: &model.event
                                 .as_ref()
-                                .map(|event| parse_description(event.description()))
+                                .map(|event| event.description())
                                 .unwrap_or_default(),
                             add_css_class: "property",
                         },

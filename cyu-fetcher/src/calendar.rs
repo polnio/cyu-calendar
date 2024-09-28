@@ -1,5 +1,8 @@
 use crate::errors::Error;
+use chrono::NaiveDate;
 use getset::Getters;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_repr::*;
 use std::error::Error as _;
@@ -103,6 +106,7 @@ pub struct GetCalendarResponseElement {
     #[serde(with = "serde_option_date_time")]
     end: Option<chrono::NaiveDateTime>,
     all_day: bool,
+    #[getset(skip)]
     description: String,
     background_color: String,
     department: String,
@@ -118,6 +122,11 @@ impl GetCalendarResponseElement {
             .and_then(|sites| sites.first())
             .and_then(|site| LOCATIONS_NAME.iter().position(|name| name == site))
             .map(|location| LOCATIONS_COORD.get(location).unwrap())
+    }
+    pub fn description(&self) -> String {
+        static LINEBREAKS_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\r\n|<br />)+").unwrap());
+        html_escape::decode_html_entities(LINEBREAKS_REGEX.replace_all(&self.description, "\n").trim())
+            .to_string()
     }
 }
 pub type GetCalendarResponse = Vec<GetCalendarResponseElement>;
@@ -176,4 +185,42 @@ pub async fn get_calendar(
         })?;
 
     Ok(calendar)
+}
+
+pub struct GetLimitsQuery<'a> {
+    pub id: &'a str,
+    pub token: &'a str,
+}
+
+pub type GetLimitsResponse = (NaiveDate, NaiveDate);
+
+pub async fn get_limits(requester: &reqwest::Client, query: GetLimitsQuery<'_>) -> Result<GetLimitsResponse, Error> {
+    let page_response = requester
+        .get(format!("https://services-web.cyu.fr/calendar/?CalendarViewType=Month&CalendarDate=09/29/2024 00:00:00&EntityType=Student&FederationIds={}&CalendarViewStr=month&EntityTypeAsIntegerString=104&IsValid=True&NotAllowedToBrowse=False", query.id))
+        .header("Cookie", query.token)
+        .send()
+        .await
+        .map_err(|_| Error::Remote)?;
+    let page_text = page_response.text().await.map_err(|_| Error::Remote)?;
+
+    static LIMITS_REGEX: Lazy<Regex> = Lazy::new(|| {
+        Regex::new(r#"(?m)var dateExtents = \{\r\n *earliest: new Date\(([0-9]+), ([0-9]+) - 1, ([0-9]+)\),\r\n *latest: new Date\(([0-9]+), ([0-9]+) - 1, ([0-9]+)\)\r\n *\};"#)
+            .unwrap()
+    });
+
+    let (r, [y1, m1, d1, y2, m2, d2]) = LIMITS_REGEX
+        .captures(&page_text)
+        .map(|captures| captures.extract())
+        .ok_or(Error::Remote)?;
+
+    let y1 = y1.parse().unwrap();
+    let m1 = m1.parse().unwrap();
+    let d1 = d1.parse().unwrap();
+    let y2 = y2.parse().unwrap();
+    let m2 = m2.parse().unwrap();
+    let d2 = d2.parse().unwrap();
+
+    let date1 = NaiveDate::from_ymd_opt(y1, m1, d1).ok_or(Error::Remote)?;
+    let date2 = NaiveDate::from_ymd_opt(y2, m2, d2).ok_or(Error::Remote)?;
+    Ok((date1, date2))
 }

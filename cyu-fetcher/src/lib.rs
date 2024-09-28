@@ -33,4 +33,11 @@ impl Fetcher {
     ) -> Result<calendar::GetCalendarResponse, Error> {
         calendar::get_calendar(&self.requester, query).await
     }
+
+    pub async fn get_calendar_limits(
+        &self,
+        query: calendar::GetLimitsQuery<'_>
+    ) -> Result<calendar::GetLimitsResponse, Error> {
+        calendar::get_limits(&self.requester, query).await
+    }
 }
