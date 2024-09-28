@@ -1,13 +1,12 @@
-use tower_cookies::CookieManagerLayer;
+pub mod api;
+pub mod ui;
 
 use crate::app::App;
-
-pub mod auth;
-pub mod calendar;
+use tower_cookies::CookieManagerLayer;
 
 pub fn get() -> axum::Router<App> {
     axum::Router::new()
-        .nest("/auth", auth::routes())
-        .nest("/calendar", calendar::routes())
+        .nest("/", ui::routes())
+        .nest("/api", api::routes())
         .layer(CookieManagerLayer::new())
 }
