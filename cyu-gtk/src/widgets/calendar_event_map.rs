@@ -45,7 +45,7 @@ impl SimpleComponent for CalendarEventMap {
 
     fn init(
         init: Self::Init,
-        root: &Self::Root,
+        root: Self::Root,
         _sender: relm4::prelude::ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let model = Self {
