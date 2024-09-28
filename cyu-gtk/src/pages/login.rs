@@ -57,12 +57,14 @@ impl Component for LoginPage {
                         set_active: CONFIG.read().unwrap().save_credentials(),
                         connect_active_notify => LoginPageInput::ToggleSavePassword,
                     },
-                    gtk::Button {
-                        set_label: "Se connecter",
-                        #[watch]
-                        set_sensitive: !model.is_processing,
-                        add_css_class: "suggested-action",
-                        connect_clicked => LoginPageInput::Submit,
+                    gtk::ListBoxRow {
+                        gtk::Button {
+                            set_label: "Se connecter",
+                            #[watch]
+                            set_sensitive: !model.is_processing,
+                            add_css_class: "suggested-action",
+                            connect_clicked => LoginPageInput::Submit,
+                        },
                     },
                 },
             },
@@ -71,7 +73,7 @@ impl Component for LoginPage {
 
     fn init(
         _init: Self::Init,
-        root: &Self::Root,
+        root: Self::Root,
         sender: ComponentSender<Self>,
     ) -> ComponentParts<Self> {
         let model = Self {

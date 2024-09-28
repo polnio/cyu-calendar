@@ -183,7 +183,7 @@ impl SimpleAsyncComponent for CalendarPage {
 
         let breakpoint =
             adw::Breakpoint::new(BreakpointCondition::parse("max-width: 700sp").unwrap());
-        breakpoint.add_setter(&widgets.split_view, "collapsed", &true.to_value());
+        breakpoint.add_setter(&widgets.split_view, "collapsed", Some(&true.to_value()));
         root.add_breakpoint(breakpoint);
 
         AsyncComponentParts { model, widgets }
