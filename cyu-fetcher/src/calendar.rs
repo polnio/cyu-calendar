@@ -1,9 +1,9 @@
-use crate::errors::Error;
+use crate::{errors::Error, utils::{CyuDate, CyuDateTime}};
 use chrono::NaiveDate;
 use getset::Getters;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use serde_repr::*;
 use std::error::Error as _;
 
@@ -26,58 +26,6 @@ pub enum CalendarView {
     Month,
 }
 
-mod serde_date_time {
-    use chrono::NaiveDateTime;
-    use serde::{de::Error, Deserialize, Deserializer, Serializer};
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<NaiveDateTime, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-
-        let date = chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S")
-            .map_err(|_| Error::custom("Invalid date"))?;
-        Ok(date)
-    }
-
-    pub fn serialize<S>(date: &NaiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_str(&date.format("%Y-%m-%dT%H:%M:%S").to_string())
-    }
-}
-
-mod serde_option_date_time {
-    use chrono::NaiveDateTime;
-    use serde::{de::Error, Deserialize, Deserializer, Serializer};
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<NaiveDateTime>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = Option::<String>::deserialize(deserializer)?;
-        match s {
-            Some(s) => Ok(Some(
-                chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S")
-                    .map_err(|_| Error::custom("Invalid date"))?,
-            )),
-            None => Ok(None),
-        }
-    }
-
-    pub fn serialize<S>(date: &Option<NaiveDateTime>, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match date {
-            Some(date) => serializer.serialize_str(&date.format("%Y-%m-%dT%H:%M:%S").to_string()),
-            None => serializer.serialize_none(),
-        }
-    }
-}
-
 #[derive(Serialize_repr, Deserialize_repr)]
 #[repr(u8)]
 pub enum ColorBy {
@@ -88,8 +36,8 @@ pub enum ColorBy {
 pub struct GetCalendarQuery {
     pub id: String,
     pub token: String,
-    pub start: String,
-    pub end: String,
+    pub start: CyuDate,
+    pub end: CyuDate,
     pub view: CalendarView,
     pub color_by: ColorBy,
 }
@@ -99,14 +47,11 @@ pub struct GetCalendarQuery {
 #[serde(rename_all = "camelCase")]
 pub struct GetCalendarResponseElement {
     id: String,
-    // start: String,
-    // end: String,
-    #[serde(with = "serde_date_time")]
-    start: chrono::NaiveDateTime,
-    #[serde(with = "serde_option_date_time")]
-    end: Option<chrono::NaiveDateTime>,
+    start: CyuDateTime,
+    end: Option<CyuDateTime>,
     all_day: bool,
     #[getset(skip)]
+    #[serde(serialize_with = "serialize_description")]
     description: String,
     background_color: String,
     department: String,
@@ -114,6 +59,14 @@ pub struct GetCalendarResponseElement {
     event_category: String,
     sites: Option<Vec<String>>,
     modules: Option<Vec<String>>,
+}
+fn parse_description(description: &str) -> String {
+    static LINEBREAKS_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\r\n|<br />)+").unwrap());
+    html_escape::decode_html_entities(LINEBREAKS_REGEX.replace_all(description, "\n").trim())
+        .to_string()
+}
+fn serialize_description<S: Serializer>(description: &String, s: S) -> Result<S::Ok, S::Error> {
+    s.serialize_str(&parse_description(&description))
 }
 impl GetCalendarResponseElement {
     pub fn coords(&self) -> Option<&[f64; 2]> {
@@ -124,9 +77,7 @@ impl GetCalendarResponseElement {
             .map(|location| LOCATIONS_COORD.get(location).unwrap())
     }
     pub fn description(&self) -> String {
-        static LINEBREAKS_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(\r\n|<br />)+").unwrap());
-        html_escape::decode_html_entities(LINEBREAKS_REGEX.replace_all(&self.description, "\n").trim())
-            .to_string()
+        parse_description(&self.description)
     }
 }
 pub type GetCalendarResponse = Vec<GetCalendarResponseElement>;
@@ -137,8 +88,8 @@ struct GetCalendarRemotePayload {
     id: String,
     #[serde(rename = "resType")]
     res_type: String,
-    start: String,
-    end: String,
+    start: CyuDate,
+    end: CyuDate,
     #[serde(rename = "calView")]
     view: CalendarView,
     #[serde(rename = "colourScheme")]
@@ -192,7 +143,7 @@ pub struct GetLimitsQuery<'a> {
     pub token: &'a str,
 }
 
-pub type GetLimitsResponse = (NaiveDate, NaiveDate);
+pub type GetLimitsResponse = (CyuDate, CyuDate);
 
 pub async fn get_limits(requester: &reqwest::Client, query: GetLimitsQuery<'_>) -> Result<GetLimitsResponse, Error> {
     let page_response = requester
@@ -208,7 +159,7 @@ pub async fn get_limits(requester: &reqwest::Client, query: GetLimitsQuery<'_>) 
             .unwrap()
     });
 
-    let (r, [y1, m1, d1, y2, m2, d2]) = LIMITS_REGEX
+    let (_, [y1, m1, d1, y2, m2, d2]) = LIMITS_REGEX
         .captures(&page_text)
         .map(|captures| captures.extract())
         .ok_or(Error::Remote)?;
@@ -222,5 +173,32 @@ pub async fn get_limits(requester: &reqwest::Client, query: GetLimitsQuery<'_>) 
 
     let date1 = NaiveDate::from_ymd_opt(y1, m1, d1).ok_or(Error::Remote)?;
     let date2 = NaiveDate::from_ymd_opt(y2, m2, d2).ok_or(Error::Remote)?;
-    Ok((date1, date2))
+    Ok((date1.into(), date2.into()))
+}
+
+pub struct GetAllQuery {
+    pub id: String,
+    pub token: String,
+    pub color_by: ColorBy,
+}
+
+
+pub async fn get_all(requester: &reqwest::Client, query: GetAllQuery) -> Result<GetCalendarResponse, Error> {
+    let (start, end) = get_limits(requester, GetLimitsQuery {
+            id: &query.id,
+            token: &query.token
+        })
+        .await?;
+
+    let events = get_calendar(requester, GetCalendarQuery {
+            id: query.id,
+            token: query.token,
+            start,
+            end,
+            view: CalendarView::Month,
+            color_by: query.color_by
+        })
+        .await?;
+
+    Ok(events)
 }

@@ -26,3 +26,12 @@ impl IntoResponse for Error {
         (StatusCode::INTERNAL_SERVER_ERROR, "Error").into_response()
     }
 }
+
+impl From<cyu_fetcher::errors::Error> for Error {
+    fn from(value: cyu_fetcher::errors::Error) -> Self {
+        match value {
+            cyu_fetcher::errors::Error::Unauthorized => Self::BadCredentials,
+            _ => Self::RemoteError,
+        }
+    }
+}

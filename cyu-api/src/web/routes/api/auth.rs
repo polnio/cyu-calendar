@@ -1,4 +1,4 @@
-use crate::{app::App, web::utils::auth::Token, Error, Result};
+use crate::{app::App, web::utils::Auth, Error, Result};
 use axum::{
     extract::State,
     routing::{get, post},
@@ -28,7 +28,12 @@ async fn login(
         .login(payload.username, payload.password)
         .await
         .map_err(|_| Error::RemoteError)?;
-    cookies.add(Cookie::new("token", token));
+    let infos = fetcher
+        .get_infos(token.clone())
+        .await
+        .map_err(|_| Error::RemoteError)?;
+    cookies.add(Cookie::build(("token", token)).path("/").build());
+    cookies.add(Cookie::build(("id", infos.federation_id)).path("/").build());
     Ok(Json(LoginResponse { success: true }))
 }
 
@@ -39,11 +44,11 @@ struct GetInfosResponse {
 }
 
 async fn get_infos(
-    Token(token): Token,
+    auth: Auth,
     State(fetcher): State<Fetcher>,
 ) -> Result<Json<GetInfosResponse>> {
     let infos = fetcher
-        .get_infos(token)
+        .get_infos(auth.token)
         .await
         .map_err(|_| Error::RemoteError)?;
 

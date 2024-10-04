@@ -1,28 +1,29 @@
-use crate::{app::App, web::utils::auth::Token, Error, Result};
+use std::{borrow::Cow, fmt::format, ops::Deref};
+
+use crate::{app::App, web::utils::Auth, Error, Result};
 use axum::{
-    extract::{Path, Query, State}, http::header, response::IntoResponse, routing::get, Json, Router
+    extract::{Query, State}, http::header, response::IntoResponse, routing::get, Json, Router
 };
-use cyu_fetcher::{calendar::ColorBy, Fetcher};
-use icalendar::Component;
+use cyu_fetcher::{calendar::ColorBy, utils::CyuDate, Fetcher};
+use icalendar::{Component, EventLike};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
 struct GetCalendarQuery {
-    start: String,
-    end: String,
+    start: CyuDate,
+    end: CyuDate,
     view: cyu_fetcher::calendar::CalendarView,
 }
 
 async fn get_calendar(
     Query(query): Query<GetCalendarQuery>,
-    Token(token): Token,
+    auth: Auth,
     State(fetcher): State<Fetcher>,
-    Path(id): Path<String>,
 ) -> Result<Json<cyu_fetcher::calendar::GetCalendarResponse>> {
     let calendar = fetcher
         .get_calendar(cyu_fetcher::calendar::GetCalendarQuery {
-            id,
-            token,
+            id: auth.id,
+            token: auth.token,
             start: query.start,
             end: query.end,
             view: query.view,
@@ -36,40 +37,56 @@ async fn get_calendar(
 
 async fn ics(
     State(fetcher): State<Fetcher>,
-    Token(token): Token,
-    Path(id): Path<String>,
+    auth: Auth,
 ) -> Result<impl IntoResponse> {
-    let (start, end) = fetcher.get_calendar_limits(cyu_fetcher::calendar::GetLimitsQuery { id: &id, token: &token })
-        .await
-        .map_err(|_| Error::RemoteError)?;
-
     let events = fetcher
-        .get_calendar(cyu_fetcher::calendar::GetCalendarQuery {
-            id,
-            token,
-            start: start.to_string(),
-            end: end.to_string(),
-            view: cyu_fetcher::calendar::CalendarView::Month,
-            color_by: ColorBy::EventCategory,
+        .get_all_calendar(cyu_fetcher::calendar::GetAllQuery {
+            id: auth.id,
+            token: auth.token,
+            color_by: ColorBy::EventCategory
         })
         .await
         .map_err(|_| Error::RemoteError)?;
 
     let events = events
         .into_iter()
-        .map(|event| icalendar::Event::new()
-             .description(&event.description())
-             .done()
-        );
+        .filter_map(|event| {
+            let mut ievent = icalendar::Event::new();
+
+            let description = event.description();
+
+            ievent
+                .uid(&format!("{}@cyu-calendar", event.id()))
+                .description(&description);
+
+            match (event.all_day(), event.end()) {
+                (true, _) => ievent.all_day((**event.start()).into()),
+                (false, Some(end)) => ievent
+                    .starts::<chrono::NaiveDateTime>(**event.start())
+                    .ends::<chrono::NaiveDateTime>(**end),
+                (false, None) => return None,
+            };
+
+            let category = event.event_category();
+            let title: Cow<str> = match category.as_str() {
+                // "CM" => format!("CM {}", event.description().split('\n').rev().nth(2).unwrap_or_default()).into(),
+                // "TD" => description.split('\n').rev().nth(2).unwrap_or_default().into(),
+                "CM" | "TD" => format!("{} {}", category, description.split('\n').rev().nth(2).unwrap_or_default().replace(category, "")).into(),
+                cat => cat.into(),
+            };
+            ievent.summary(&title);
+
+            Some(ievent.done())
+        });
 
     let mut calendar = icalendar::Calendar::from_iter(events);
     let calendar = calendar.name("CYU Calendar");
 
-    Ok(([(header::CONTENT_TYPE, "text/calendar")], calendar.to_string()))
+    Ok(([(header::CONTENT_TYPE, "text/calendar")], calendar.to_string().replace("\\N", "\\n")))
 }
 
 pub fn routes() -> Router<App> {
     Router::new()
-        .route("/:id", get(get_calendar))
-        .route("/:id/ics", get(ics))
+        .route("/", get(get_calendar))
+        .route("/ics", get(ics))
 }
