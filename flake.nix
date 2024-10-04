@@ -64,6 +64,7 @@
             nativeBuildInputs = with pkgs; [
               rustc
               cargo
+              nodejs
 
               # CYU GTK
               pkg-config

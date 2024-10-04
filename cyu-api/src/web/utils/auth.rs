@@ -4,23 +4,27 @@ use tower_cookies::Cookies;
 
 use crate::{Error, Result};
 
-pub struct Token(pub String);
+pub struct Auth {
+    pub token: String,
+    pub id: String
+}
+
+pub fn get_auth_from_cookies(cookies: &Cookies) -> Option<Auth> {
+    let token = cookies.get("token")?.value().to_owned();
+    let id = cookies.get("id")?.value().to_owned();
+    Some(Auth { token, id })
+}
 
 #[async_trait]
-impl<S: Send + Sync> FromRequestParts<S> for Token {
+impl<S: Send + Sync> FromRequestParts<S> for Auth {
     type Rejection = Error;
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self> {
-        let cookie = parts
+        let cookies = parts
             .extract::<Cookies>()
             .await
             .map_err(|_| Error::Unauthorized)?;
 
-        let token = cookie
-            .get("token")
-            .map(|cookie| cookie.value().to_string())
-            .ok_or(Error::Unauthorized)?;
-
-        Ok(Token(token))
+        get_auth_from_cookies(&cookies).ok_or(Error::Unauthorized)
     }
 }

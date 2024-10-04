@@ -10,6 +10,7 @@ use adw::BreakpointCondition;
 use async_recursion::async_recursion;
 use cyu_fetcher::calendar::{CalendarView, ColorBy, GetCalendarQuery};
 use cyu_fetcher::errors::Error;
+use cyu_fetcher::utils::CyuDate;
 use relm4::factory::FactoryVecDeque;
 use relm4::{adw::prelude::*, prelude::*};
 
@@ -22,6 +23,13 @@ pub struct CalendarPage {
     is_retrying: bool,
 }
 
+fn gdatetime_to_cyudate(datetime: gtk::glib::DateTime) -> CyuDate {
+    let year = datetime.year();
+    let month = datetime.month().try_into().unwrap();
+    let day = datetime.day_of_month().try_into().unwrap();
+    CyuDate::new(year, month, day).unwrap()
+}
+
 impl CalendarPage {
     #[async_recursion(?Send)]
     async fn refresh(&mut self, sender: &AsyncComponentSender<Self>) {
@@ -30,12 +38,7 @@ impl CalendarPage {
             return;
         };
 
-        let date = self
-            .day_selector_widget
-            .date()
-            .format("%Y-%m-%d")
-            .expect("Could not format date")
-            .to_string();
+        let date = gdatetime_to_cyudate(self.day_selector_widget.date());
         let calendar = FETCHER
             .get_calendar(GetCalendarQuery {
                 id: auth.id.clone(),

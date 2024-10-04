@@ -1,0 +1,20 @@
+{{#> layout }}
+{{#* inline "head"}}
+<script>
+ var calendar = {{{json calendar }}}
+</script>
+<script src="assets/home.js" defer></script>
+{{/inline}}
+
+<header class="navbar bg-base-100">
+    <a class="btn btn-ghost text-xl" href="/" up-follow>CYU Calendar</a>
+</header>
+
+<div class="container mx-auto">
+    <!-- <div class="buttons">
+         <a class="btn" href="{{previous_page}}" up-follow>Previous</a>
+         <a class="btn" href="{{next_page}}" up-follow>Next</a>
+         </div> -->
+    <div id="calendar" up-keep></div>
+</div>
+{{/layout  }}

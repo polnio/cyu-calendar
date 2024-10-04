@@ -1,4 +1,4 @@
-use crate::utils::calendar_event::{parse_description, Event};
+use crate::utils::calendar_event::Event;
 use relm4::{factory::FactoryComponent, gtk::prelude::*, prelude::*, FactorySender, RelmWidgetExt};
 
 pub struct CalendarEventWidget {
@@ -32,7 +32,7 @@ impl FactoryComponent for CalendarEventWidget {
                 set_halign: gtk::Align::Start,
                 set_label: {
                     let start = self.event.start().format("%H:%M");
-                    let end = self.event.end().map(|end| end.format("%H:%M").to_string()).unwrap_or("".to_string());
+                    let end = self.event.end().as_ref().map(|end| end.format("%H:%M").to_string()).unwrap_or("".to_string());
                     &format!("{} - {}", start, end)
                 },
             },
