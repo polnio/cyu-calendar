@@ -1,9 +1,12 @@
-use std::{borrow::Cow, fmt::format, ops::Deref};
-
-use crate::{app::App, web::utils::Auth, Error, Result};
-use axum::{
-    extract::{Query, State}, http::header, response::IntoResponse, routing::get, Json, Router
-};
+use std::borrow::Cow;
+use crate::{Error, Result};
+use crate::utils::Auth;
+use crate::app::App;
+use axum::{Json, Router};
+use axum::routing::get;
+use axum::response::IntoResponse;
+use axum::http::header;
+use axum::extract::{Query, State};
 use cyu_fetcher::{calendar::ColorBy, utils::CyuDate, Fetcher};
 use icalendar::{Component, EventLike};
 use serde::Deserialize;

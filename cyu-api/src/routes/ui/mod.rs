@@ -7,7 +7,6 @@ use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::Form;
 use axum::{extract::State, routing::get};
 use chrono::{Datelike as _, Days, Months, Weekday};
-use cyu_fetcher::calendar::GetCalendarQuery;
 use cyu_fetcher::utils::CyuDate;
 use cyu_fetcher::Fetcher;
 use derive_more::derive::Display;
@@ -15,8 +14,8 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tower_cookies::{Cookie, Cookies};
-use crate::web::utils::auth::get_auth_from_cookies;
-use crate::web::utils::Auth;
+use crate::utils::auth::get_auth_from_cookies;
+use crate::utils::Auth;
 use crate::Error;
 use crate::app::{App, TemplateEngine};
 
