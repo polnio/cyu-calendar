@@ -24,7 +24,7 @@ async fn main() {
         }
     };
 
-    let result = axum::serve(listener, web::routes::get().with_state(app).into_make_service()).await;
+    let result = axum::serve(listener, routes::get().with_state(app).into_make_service()).await;
     if let Err(err) = result {
         eprintln!("Failed to run server: {}", err);
         std::process::exit(1);

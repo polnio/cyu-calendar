@@ -1,9 +1,9 @@
-use crate::{app::App, web::utils::Auth, Error, Result};
-use axum::{
-    extract::State,
-    routing::{get, post},
-    Json, Router,
-};
+use crate::{Error, Result};
+use crate::utils::Auth;
+use crate::app::App;
+use axum::{Json, Router};
+use axum::routing::{get, post};
+use axum::extract::State;
 use cyu_fetcher::Fetcher;
 use serde::{Deserialize, Serialize};
 use tower_cookies::{Cookie, Cookies};
