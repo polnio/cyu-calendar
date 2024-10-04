@@ -2,7 +2,8 @@ use std::net::SocketAddr;
 
 pub mod app;
 pub mod error;
-pub mod web;
+pub mod utils;
+pub mod routes;
 
 pub use error::{Error, Result};
 
