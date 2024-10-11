@@ -6,11 +6,15 @@ description.workspace = true
 edition.workspace = true
 
 [dependencies]
+aes-gcm = "0.10.3"
+anyhow = "1.0.89"
 async-trait = "0.1"
 axum = "0.7"
+base64 = "0.22.1"
 chrono = "0.4.38"
 cyu-fetcher = { path = "../cyu-fetcher" }
 derive_more = { version = "1.0.0", features = ["from", "display"] }
+dotenv = "0.15.0"
 handlebars = { version = "6.1.0", features = ["dir_source"] }
 icalendar = "0.16.8"
 itertools = "0.13.0"

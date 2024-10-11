@@ -1,15 +1,15 @@
-use std::borrow::Cow;
 use crate::{Error, Result};
-use crate::utils::Auth;
-use crate::app::App;
+use crate::utils::{ics, Auth};
+use crate::app::{App, Encrypter};
 use axum::{Json, Router};
 use axum::routing::get;
-use axum::response::IntoResponse;
-use axum::http::header;
+use axum::response::{IntoResponse, Response};
+use axum::http::{header, StatusCode};
 use axum::extract::{Query, State};
 use cyu_fetcher::{calendar::ColorBy, utils::CyuDate, Fetcher};
-use icalendar::{Component, EventLike};
 use serde::Deserialize;
+
+use super::auth::LoginPayload;
 
 #[derive(Deserialize)]
 struct GetCalendarQuery {
@@ -38,58 +38,49 @@ async fn get_calendar(
     Ok(Json(calendar))
 }
 
-async fn ics(
+async fn get_ics_token(
+    State(encrypter): State<Encrypter>,
+    Json(payload): Json<LoginPayload>,
+) -> Response {
+    let Ok(token) = ics::encrypt_creds(&encrypter, &payload.username, &payload.password) else {
+        return (StatusCode::INTERNAL_SERVER_ERROR, "").into_response();
+    };
+    token.into_response()
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize)]
+struct GetIcsQuery {
+    token: String
+}
+
+async fn get_ics(
+    State(encrypter): State<Encrypter>,
     State(fetcher): State<Fetcher>,
-    auth: Auth,
-) -> Result<impl IntoResponse> {
-    let events = fetcher
-        .get_all_calendar(cyu_fetcher::calendar::GetAllQuery {
-            id: auth.id,
-            token: auth.token,
-            color_by: ColorBy::EventCategory
-        })
-        .await
-        .map_err(|_| Error::RemoteError)?;
-
-    let events = events
-        .into_iter()
-        .filter_map(|event| {
-            let mut ievent = icalendar::Event::new();
-
-            let description = event.description();
-
-            ievent
-                .uid(&format!("{}@cyu-calendar", event.id()))
-                .description(&description);
-
-            match (event.all_day(), event.end()) {
-                (true, _) => ievent.all_day((**event.start()).into()),
-                (false, Some(end)) => ievent
-                    .starts::<chrono::NaiveDateTime>(**event.start())
-                    .ends::<chrono::NaiveDateTime>(**end),
-                (false, None) => return None,
-            };
-
-            let category = event.event_category();
-            let title: Cow<str> = match category.as_str() {
-                // "CM" => format!("CM {}", event.description().split('\n').rev().nth(2).unwrap_or_default()).into(),
-                // "TD" => description.split('\n').rev().nth(2).unwrap_or_default().into(),
-                "CM" | "TD" => format!("{} {}", category, description.split('\n').rev().nth(2).unwrap_or_default().replace(category, "")).into(),
-                cat => cat.into(),
-            };
-            ievent.summary(&title);
-
-            Some(ievent.done())
-        });
-
-    let mut calendar = icalendar::Calendar::from_iter(events);
-    let calendar = calendar.name("CYU Calendar");
-
-    Ok(([(header::CONTENT_TYPE, "text/calendar")], calendar.to_string().replace("\\N", "\\n")))
+    // auth: Auth,
+    Query(query): Query<GetIcsQuery>,
+) -> Response {
+    let Ok((username, password)) = ics::decrypt_creds(&encrypter, &query.token) else {
+        return (StatusCode::UNAUTHORIZED, "").into_response();
+    };
+    let Ok(token) = fetcher.login(username, password).await else {
+        return (StatusCode::UNAUTHORIZED, "").into_response();
+    };
+    let Ok(infos) = fetcher.get_infos(token.clone()).await else {
+        return (StatusCode::UNAUTHORIZED, "").into_response();
+    };
+    let auth = Auth {
+        id: infos.federation_id,
+        token
+    };
+    let Ok(calendar) = ics::generate(&fetcher, auth).await else {
+        return (StatusCode::INTERNAL_SERVER_ERROR, "").into_response();
+    };
+    ([(header::CONTENT_TYPE, "text/calendar")], calendar).into_response()
 }
 
 pub fn routes() -> Router<App> {
     Router::new()
         .route("/", get(get_calendar))
-        .route("/ics", get(ics))
+        .route("/ics", get(get_ics))
+        .route("/ics-token", get(get_ics_token))
 }
