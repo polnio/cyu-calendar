@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize};
 use tower_cookies::{Cookie, Cookies};
 
 #[derive(Debug, Deserialize)]
-struct LoginPayload {
-    username: String,
-    password: String,
+pub(super) struct LoginPayload {
+    pub(super) username: String,
+    pub(super) password: String,
 }
 
 #[derive(Debug, Serialize)]

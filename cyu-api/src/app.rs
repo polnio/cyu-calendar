@@ -1,9 +1,15 @@
+use crate::utils::ics;
+use crate::utils::Env;
+use aes_gcm::KeyInit as _;
 use axum::extract::FromRef;
+use base64::Engine;
 use cyu_fetcher::Fetcher;
 use handlebars::Handlebars;
 use std::{path::PathBuf, sync::Arc};
+use tower_cookies::cookie::time::PrimitiveDateTime;
 
 pub type TemplateEngine = Arc<Handlebars<'static>>;
+pub type Encrypter = Arc<ics::Encrypter>;
 
 fn to_json(
     h: &handlebars::Helper,
@@ -24,14 +30,17 @@ fn to_json(
 pub struct App {
     requester: Fetcher,
     template_engine: TemplateEngine,
+    // env: Env,
+    encrypter: Arc<ics::Encrypter>,
 }
 
 impl App {
     pub fn new() -> Self {
         let mut handlebars = Handlebars::new();
-        let hbs_path = PathBuf::from(env!("CARGO_PKG_NAME"))
-            .join("assets")
-            .join("views");
+        // let hbs_path = PathBuf::from(env!("CARGO_PKG_NAME"))
+        //     .join("assets")
+        //     .join("views");
+        let hbs_path = PathBuf::from("assets/views");
 
         let _ = handlebars
             .register_template_file("layout", hbs_path.join("layout.hbs"))
@@ -47,9 +56,16 @@ impl App {
             });
         handlebars.register_helper("json", Box::new(to_json));
         handlebars.set_dev_mode(true);
+        let env = Env::load();
+        let key = base64::engine::general_purpose::STANDARD
+            .decode(env.ics_auth_key)
+            .unwrap();
+        let encrypter = ics::Encrypter::new_from_slice(&key).unwrap();
         Self {
             requester: Fetcher::new(),
             template_engine: handlebars.into(),
+            // env: Env::load(),
+            encrypter: encrypter.into(),
         }
     }
 }
@@ -63,5 +79,11 @@ impl FromRef<App> for Fetcher {
 impl FromRef<App> for TemplateEngine {
     fn from_ref(app: &App) -> Self {
         app.template_engine.clone()
+    }
+}
+
+impl FromRef<App> for Encrypter {
+    fn from_ref(app: &App) -> Self {
+        app.encrypter.clone()
     }
 }
