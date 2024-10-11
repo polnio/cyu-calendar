@@ -46,6 +46,11 @@ pub async fn login(
         .send()
         .await
         .map_err(|_| Error::Remote)?;
+
+    if !login_response.status().is_redirection() {
+        return Err(Error::Unauthorized);
+    }
+
     let login_cookie = login_response
         .headers()
         .get_all("set-cookie")
