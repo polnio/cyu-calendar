@@ -6,7 +6,6 @@ use base64::Engine;
 use cyu_fetcher::Fetcher;
 use handlebars::Handlebars;
 use std::{path::PathBuf, sync::Arc};
-use tower_cookies::cookie::time::PrimitiveDateTime;
 
 pub type TemplateEngine = Arc<Handlebars<'static>>;
 pub type Encrypter = Arc<ics::Encrypter>;

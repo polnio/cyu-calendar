@@ -1,6 +1,8 @@
-use crate::{Error, Result};
+use crate::utils::response::error;
 use crate::utils::Auth;
 use crate::app::App;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Response};
 use axum::{Json, Router};
 use axum::routing::{get, post};
 use axum::extract::State;
@@ -23,18 +25,18 @@ async fn login(
     cookies: Cookies,
     State(fetcher): State<Fetcher>,
     Json(payload): Json<LoginPayload>,
-) -> Result<Json<LoginResponse>> {
-    let token = fetcher
-        .login(payload.username, payload.password)
-        .await
-        .map_err(|_| Error::RemoteError)?;
-    let infos = fetcher
-        .get_infos(token.clone())
-        .await
-        .map_err(|_| Error::RemoteError)?;
+) -> Response {
+    let token = match fetcher.login(payload.username, payload.password).await {
+        Ok(token) => token,
+        Err(_) => return error(StatusCode::UNAUTHORIZED, "Invalid credentials").into_response()
+    };
+    let infos = match fetcher.get_infos(token.clone()).await {
+        Ok(infos) => infos,
+        Err(_) => return error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve informations").into_response()
+    };
     cookies.add(Cookie::build(("token", token)).path("/").build());
     cookies.add(Cookie::build(("id", infos.federation_id)).path("/").build());
-    Ok(Json(LoginResponse { success: true }))
+    Json(LoginResponse { success: true }).into_response()
 }
 
 #[derive(Debug, Serialize)]
@@ -46,16 +48,16 @@ struct GetInfosResponse {
 async fn get_infos(
     auth: Auth,
     State(fetcher): State<Fetcher>,
-) -> Result<Json<GetInfosResponse>> {
-    let infos = fetcher
-        .get_infos(auth.token)
-        .await
-        .map_err(|_| Error::RemoteError)?;
+) -> Response {
+    let infos = match fetcher.get_infos(auth.token).await {
+        Ok(infos) => infos,
+        Err(_) => return error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve informations").into_response()
+    };
 
-    Ok(Json(GetInfosResponse {
+    Json(GetInfosResponse {
         id: infos.federation_id,
         name: infos.display_name,
-    }))
+    }).into_response()
 }
 
 pub fn routes() -> Router<App> {
