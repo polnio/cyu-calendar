@@ -1,9 +1,9 @@
-use errors::Error;
-
 pub mod auth;
 pub mod calendar;
 pub mod errors;
 pub mod utils;
+
+pub use errors::Error;
 
 #[derive(Clone)]
 pub struct Fetcher {

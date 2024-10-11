@@ -1,4 +1,4 @@
-use crate::{Error, Result};
+use crate::utils::response::error;
 use crate::utils::{ics, Auth};
 use crate::app::{App, Encrypter};
 use axum::{Json, Router};
@@ -22,7 +22,7 @@ async fn get_calendar(
     Query(query): Query<GetCalendarQuery>,
     auth: Auth,
     State(fetcher): State<Fetcher>,
-) -> Result<Json<cyu_fetcher::calendar::GetCalendarResponse>> {
+) -> Response {
     let calendar = fetcher
         .get_calendar(cyu_fetcher::calendar::GetCalendarQuery {
             id: auth.id,
@@ -32,10 +32,12 @@ async fn get_calendar(
             view: query.view,
             color_by: ColorBy::EventCategory,
         })
-        .await
-        .map_err(|_| Error::RemoteError)?;
+        .await;
 
-    Ok(Json(calendar))
+    match calendar {
+        Ok(calendar) => Json(calendar).into_response(),
+        Err(_) => error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve calendar from cyu").into_response()
+    }
 }
 
 async fn get_ics_token(

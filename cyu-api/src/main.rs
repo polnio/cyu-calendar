@@ -1,18 +1,14 @@
-use std::net::SocketAddr;
-
 pub mod app;
-pub mod error;
 pub mod utils;
 pub mod routes;
 
-pub use error::{Error, Result};
-
+use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() {
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    println!("Listening on http://{addr}",);
+    println!("Listening on http://{addr}");
 
     let app = app::App::new();
 

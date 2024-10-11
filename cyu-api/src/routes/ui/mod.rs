@@ -1,7 +1,7 @@
 use std::collections::HashMap;
-
+use anyhow::Context;
 use axum::extract::{OriginalUri, Query, Request};
-use axum::http::uri::PathAndQuery;
+use axum::http::StatusCode;
 use axum::middleware::{self, Next};
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::Form;
@@ -15,8 +15,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tower_cookies::{Cookie, Cookies};
 use crate::utils::auth::get_auth_from_cookies;
+use crate::utils::response::{error, redirect_to_login, AnyhowExt as _};
 use crate::utils::Auth;
-use crate::Error;
 use crate::app::{App, TemplateEngine};
 
 #[derive(Debug, Deserialize)]
@@ -24,14 +24,21 @@ struct LoginQuery {
     redirect: Option<String>
 }
 
-pub fn render_template(te: TemplateEngine, name: &str, data: Option<impl Serialize>) -> Result<impl IntoResponse, Error> {
+pub fn render_template(te: TemplateEngine, name: &str, data: Option<impl Serialize>) -> Result<impl IntoResponse, handlebars::RenderError> {
     let output = if let Some(data) = data {
         te.render(name, &data)
     } else {
         te.render(name, &json!({}))
     };
 
-    Ok(Html(output.map_err(Error::from)?))
+    output.map(Html)
+}
+
+pub fn render_template_or_fail(te: TemplateEngine, name: &str, data: Option<impl Serialize>) -> Response {
+    match render_template(te, name, data).with_context(|| format!("Failed to render template '{name}'")) {
+        Ok(result) => result.into_response(),
+        Err(err) => err.into_api_response(StatusCode::INTERNAL_SERVER_ERROR).into_response()
+    }
 }
 
 async fn check_auth(
@@ -41,10 +48,10 @@ async fn check_auth(
     next: Next
 ) -> Response {
     if get_auth_from_cookies(&cookies).is_none() {
-        let redirect = uri.path_and_query().map_or("/", PathAndQuery::as_str);
-        return Redirect::to(&format!("/login?redirect={}", redirect)).into_response()
+        redirect_to_login(&uri).into_response()
+    } else {
+        next.run(request).await
     }
-    next.run(request).await
 }
 
 async fn check_unauth(
@@ -131,7 +138,7 @@ async fn home(
     Query(query): Query<HomeQuery>,
     State(te): State<TemplateEngine>,
     State(fetcher): State<Fetcher>
-) -> Result<Response, Error> {
+) -> Response {
     let uri_string = uri.to_string();
     let (start, view) = match (query.date, query.view) {
         (Some(date), Some(view)) => (date, view),
@@ -139,19 +146,19 @@ async fn home(
             let view = HomeQueryView::default();
             // return Ok(Redirect::to(&format!("{uri}&view={view}")).into_response())
             println!("{}, {}", uri, set_uri(&uri_string, &date, &view));
-            return Ok(Redirect::to(&set_uri(&uri_string, &date, &view)).into_response())
+            return Redirect::to(&set_uri(&uri_string, &date, &view)).into_response()
         }
         (None, Some(view)) => {
             let date = default_date_for_view(&view);
             // return Ok(Redirect::to(&format!("{uri}&date={date}")).into_response())
-            return Ok(Redirect::to(&set_uri(&uri_string, &date, &view)).into_response())
+            return Redirect::to(&set_uri(&uri_string, &date, &view)).into_response()
         }
         (None, None) => {
             // let sep = if uri.query().is_some() {'&'} else {'?'};
             let view = HomeQueryView::default();
             let date = default_date_for_view(&view);
             // return Ok(Redirect::to(&format!("{uri}{sep}date={date}&view={view}")).into_response())
-            return Ok(Redirect::to(&set_uri(&uri_string, &date, &view)).into_response())
+            return Redirect::to(&set_uri(&uri_string, &date, &view)).into_response()
         }
     };
 
@@ -177,17 +184,21 @@ async fn home(
             token: auth.token,
             color_by: cyu_fetcher::calendar::ColorBy::EventCategory,
         })
-        .await
-        .map_err(|_| Error::RemoteError)?;
+        .await;
 
-    render_template(te, "home", Some(HomeData { calendar, previous_page, next_page })).map(IntoResponse::into_response)
+    let calendar = match calendar {
+        Ok(calendar) => calendar,
+        Err(cyu_fetcher::Error::Unauthorized) => return redirect_to_login(&uri).into_response(),
+        Err(_) => return error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve calendar from cyu").into_response()
+    };
+
+    render_template_or_fail(te, "home", Some(HomeData { calendar, previous_page, next_page }))
 }
 
 async fn login(
     State(te): State<TemplateEngine>
-) -> Result<impl IntoResponse, Error> {
-    // Ok(Html(te.render("login", &json!({})).map_err(Error::from)?))
-    render_template(te, "login", None::<Value>)
+) -> Response {
+    render_template_or_fail(te, "login", None::<Value>)
 }
 
 #[derive(Debug, Deserialize)]
@@ -201,20 +212,19 @@ async fn login_handle(
     Query(query): Query<LoginQuery>,
     State(fetcher): State<Fetcher>,
     Form(payload): Form<LoginHandlePayload>
-) -> Result<impl IntoResponse, Error> {
+) -> Response {
     let token = match fetcher.login(payload.username, payload.password).await {
         Ok(token) => token,
-        Err(cyu_fetcher::errors::Error::Unauthorized) => return Err(Error::BadCredentials),
-        Err(_) => return Err(Error::RemoteError)
+        Err(cyu_fetcher::errors::Error::Unauthorized) => return error(StatusCode::UNAUTHORIZED, "Invalid credentials").into_response(),
+        Err(_) => return error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to login to cyu").into_response(),
     };
     let infos = match fetcher.get_infos(token.clone()).await {
         Ok(infos) => infos,
-        Err(cyu_fetcher::errors::Error::Unauthorized) => return Err(Error::BadCredentials),
-        Err(_) => return Err(Error::RemoteError)
+        Err(_) => return error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve infos from cyu").into_response(),
     };
     cookies.add(Cookie::new("token", token));
     cookies.add(Cookie::new("id", infos.federation_id));
-    Ok(Redirect::to(&query.redirect.unwrap_or("/".into())))
+    Redirect::to(&query.redirect.unwrap_or("/".into())).into_response()
 }
 
 pub fn routes() -> axum::Router<App> {
