@@ -1,4 +1,4 @@
-use crate::utils::response::error;
+use crate::utils::response::api_error;
 use crate::utils::{ics, Auth};
 use crate::app::{App, Encrypter};
 use axum::{Json, Router};
@@ -36,7 +36,7 @@ async fn get_calendar(
 
     match calendar {
         Ok(calendar) => Json(calendar).into_response(),
-        Err(_) => error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve calendar from cyu").into_response()
+        Err(_) => api_error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve calendar from cyu").into_response()
     }
 }
 

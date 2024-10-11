@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tower_cookies::{Cookie, Cookies};
 use crate::utils::auth::get_auth_from_cookies;
-use crate::utils::response::{error, redirect_to_login, AnyhowExt as _};
+use crate::utils::response::{redirect_to_login, ui_error, AnyhowExt as _};
 use crate::utils::Auth;
 use crate::app::{App, TemplateEngine};
 
@@ -134,6 +134,7 @@ fn set_uri(uri: &str, date: &CyuDate, view: &HomeQueryView) -> String {
 
 async fn home(
     auth: Auth,
+    cookies: Cookies,
     OriginalUri(uri): OriginalUri,
     Query(query): Query<HomeQuery>,
     State(te): State<TemplateEngine>,
@@ -188,8 +189,12 @@ async fn home(
 
     let calendar = match calendar {
         Ok(calendar) => calendar,
-        Err(cyu_fetcher::Error::Unauthorized) => return redirect_to_login(&uri).into_response(),
-        Err(_) => return error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve calendar from cyu").into_response()
+        Err(cyu_fetcher::Error::Unauthorized) => {
+            cookies.remove(Cookie::from("token"));
+            cookies.remove(Cookie::from("id"));
+            return redirect_to_login(&uri).into_response()
+        },
+        Err(_) => return ui_error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve calendar from cyu".to_owned()).into_response()
     };
 
     render_template_or_fail(te, "home", Some(HomeData { calendar, previous_page, next_page }))
@@ -215,12 +220,12 @@ async fn login_handle(
 ) -> Response {
     let token = match fetcher.login(payload.username, payload.password).await {
         Ok(token) => token,
-        Err(cyu_fetcher::errors::Error::Unauthorized) => return error(StatusCode::UNAUTHORIZED, "Invalid credentials").into_response(),
-        Err(_) => return error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to login to cyu").into_response(),
+        Err(cyu_fetcher::errors::Error::Unauthorized) => return ui_error(StatusCode::UNAUTHORIZED, "Invalid credentials".to_owned()).into_response(),
+        Err(_) => return ui_error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to login to cyu".to_owned()).into_response(),
     };
     let infos = match fetcher.get_infos(token.clone()).await {
         Ok(infos) => infos,
-        Err(_) => return error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve infos from cyu").into_response(),
+        Err(_) => return ui_error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve infos from cyu".to_owned()).into_response(),
     };
     cookies.add(Cookie::new("token", token));
     cookies.add(Cookie::new("id", infos.federation_id));
