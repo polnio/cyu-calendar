@@ -3,6 +3,7 @@ use chrono::NaiveDate;
 use getset::Getters;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_repr::*;
 use std::error::Error as _;
@@ -152,8 +153,12 @@ pub async fn get_limits(requester: &reqwest::Client, query: GetLimitsQuery<'_>) 
         .send()
         .await
         .map_err(|_| Error::Remote)?;
-    let page_text = page_response.text().await.map_err(|_| Error::Remote)?;
 
+    if page_response.status().is_redirection() && page_response.headers().get("location").and_then(|v| v.to_str().ok()).unwrap_or_default() == "/calendar/Login" {
+        return Err(Error::Unauthorized);
+    }
+
+    let page_text = page_response.text().await.map_err(|_| Error::Remote)?;
     static LIMITS_REGEX: Lazy<Regex> = Lazy::new(|| {
         Regex::new(r#"(?m)var dateExtents = \{\r\n *earliest: new Date\(([0-9]+), ([0-9]+) - 1, ([0-9]+)\),\r\n *latest: new Date\(([0-9]+), ([0-9]+) - 1, ([0-9]+)\)\r\n *\};"#)
             .unwrap()

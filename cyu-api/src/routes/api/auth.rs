@@ -1,4 +1,4 @@
-use crate::utils::response::error;
+use crate::utils::response::api_error;
 use crate::utils::Auth;
 use crate::app::App;
 use axum::http::StatusCode;
@@ -28,11 +28,11 @@ async fn login(
 ) -> Response {
     let token = match fetcher.login(payload.username, payload.password).await {
         Ok(token) => token,
-        Err(_) => return error(StatusCode::UNAUTHORIZED, "Invalid credentials").into_response()
+        Err(_) => return api_error(StatusCode::UNAUTHORIZED, "Invalid credentials").into_response()
     };
     let infos = match fetcher.get_infos(token.clone()).await {
         Ok(infos) => infos,
-        Err(_) => return error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve informations").into_response()
+        Err(_) => return api_error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve informations").into_response()
     };
     cookies.add(Cookie::build(("token", token)).path("/").build());
     cookies.add(Cookie::build(("id", infos.federation_id)).path("/").build());
@@ -51,7 +51,7 @@ async fn get_infos(
 ) -> Response {
     let infos = match fetcher.get_infos(auth.token).await {
         Ok(infos) => infos,
-        Err(_) => return error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve informations").into_response()
+        Err(_) => return api_error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve informations").into_response()
     };
 
     Json(GetInfosResponse {
