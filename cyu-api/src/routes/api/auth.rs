@@ -1,11 +1,11 @@
+use crate::app::App;
 use crate::utils::response::api_error;
 use crate::utils::Auth;
-use crate::app::App;
+use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::{Json, Router};
 use axum::routing::{get, post};
-use axum::extract::State;
+use axum::{Json, Router};
 use cyu_fetcher::Fetcher;
 use serde::{Deserialize, Serialize};
 use tower_cookies::{Cookie, Cookies};
@@ -28,11 +28,19 @@ async fn login(
 ) -> Response {
     let token = match fetcher.login(payload.username, payload.password).await {
         Ok(token) => token,
-        Err(_) => return api_error(StatusCode::UNAUTHORIZED, "Invalid credentials").into_response()
+        Err(_) => {
+            return api_error(StatusCode::UNAUTHORIZED, "Invalid credentials").into_response()
+        }
     };
     let infos = match fetcher.get_infos(token.clone()).await {
         Ok(infos) => infos,
-        Err(_) => return api_error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve informations").into_response()
+        Err(_) => {
+            return api_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to retrieve informations",
+            )
+            .into_response()
+        }
     };
     cookies.add(Cookie::build(("token", token)).path("/").build());
     cookies.add(Cookie::build(("id", infos.federation_id)).path("/").build());
@@ -45,19 +53,23 @@ struct GetInfosResponse {
     name: String,
 }
 
-async fn get_infos(
-    auth: Auth,
-    State(fetcher): State<Fetcher>,
-) -> Response {
+async fn get_infos(auth: Auth, State(fetcher): State<Fetcher>) -> Response {
     let infos = match fetcher.get_infos(auth.token).await {
         Ok(infos) => infos,
-        Err(_) => return api_error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve informations").into_response()
+        Err(_) => {
+            return api_error(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "Failed to retrieve informations",
+            )
+            .into_response()
+        }
     };
 
     Json(GetInfosResponse {
         id: infos.federation_id,
         name: infos.display_name,
-    }).into_response()
+    })
+    .into_response()
 }
 
 pub fn routes() -> Router<App> {

@@ -1,10 +1,13 @@
-use std::borrow::Cow;
 use super::Auth;
-use aes_gcm::{aead::{rand_core::RngCore, Aead, OsRng}, Aes256Gcm, Nonce};
+use aes_gcm::aead::rand_core::RngCore;
+use aes_gcm::aead::{Aead, OsRng};
+use aes_gcm::{Aes256Gcm, Nonce};
 use anyhow::{anyhow, bail, Context as _, Result};
-use base64::{prelude::BASE64_URL_SAFE_NO_PAD, Engine};
-use cyu_fetcher::{calendar::ColorBy, Fetcher};
+use base64::prelude::*;
+use cyu_fetcher::calendar::ColorBy;
+use cyu_fetcher::Fetcher;
 use icalendar::{Component as _, EventLike as _};
+use std::borrow::Cow;
 
 pub async fn generate(fetcher: &Fetcher, auth: Auth) -> Result<String> {
     let events = fetcher
@@ -78,7 +81,9 @@ pub fn encrypt_creds(encrypter: &Encrypter, username: &str, password: &str) -> R
 }
 
 pub fn decrypt_creds(encrypter: &Encrypter, encrypted: &str) -> Result<(String, String)> {
-    let data = BASE64_URL_SAFE_NO_PAD.decode(encrypted).context("Failed to decode base64")?;
+    let data = BASE64_URL_SAFE_NO_PAD
+        .decode(encrypted)
+        .context("Failed to decode base64")?;
     if data.len() < 12 {
         bail!("Invalid token");
     }

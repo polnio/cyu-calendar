@@ -1,9 +1,9 @@
-use crate::{errors::Error, utils::{CyuDate, CyuDateTime}};
+use crate::errors::Error;
+use crate::utils::{CyuDate, CyuDateTime};
 use chrono::NaiveDate;
 use getset::Getters;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_repr::*;
 use std::error::Error as _;
@@ -146,7 +146,10 @@ pub struct GetLimitsQuery<'a> {
 
 pub type GetLimitsResponse = (CyuDate, CyuDate);
 
-pub async fn get_limits(requester: &reqwest::Client, query: GetLimitsQuery<'_>) -> Result<GetLimitsResponse, Error> {
+pub async fn get_limits(
+    requester: &reqwest::Client,
+    query: GetLimitsQuery<'_>,
+) -> Result<GetLimitsResponse, Error> {
     let page_response = requester
         .get(format!("https://services-web.cyu.fr/calendar/?CalendarViewType=Month&CalendarDate=09/29/2024 00:00:00&EntityType=Student&FederationIds={}&CalendarViewStr=month&EntityTypeAsIntegerString=104&IsValid=True&NotAllowedToBrowse=False", query.id))
         .header("Cookie", query.token)
@@ -154,7 +157,14 @@ pub async fn get_limits(requester: &reqwest::Client, query: GetLimitsQuery<'_>) 
         .await
         .map_err(|_| Error::Remote)?;
 
-    if page_response.status().is_redirection() && page_response.headers().get("location").and_then(|v| v.to_str().ok()).unwrap_or_default() == "/calendar/Login" {
+    if page_response.status().is_redirection()
+        && page_response
+            .headers()
+            .get("location")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or_default()
+            == "/calendar/Login"
+    {
         return Err(Error::Unauthorized);
     }
 
@@ -187,23 +197,31 @@ pub struct GetAllQuery {
     pub color_by: ColorBy,
 }
 
-
-pub async fn get_all(requester: &reqwest::Client, query: GetAllQuery) -> Result<GetCalendarResponse, Error> {
-    let (start, end) = get_limits(requester, GetLimitsQuery {
+pub async fn get_all(
+    requester: &reqwest::Client,
+    query: GetAllQuery,
+) -> Result<GetCalendarResponse, Error> {
+    let (start, end) = get_limits(
+        requester,
+        GetLimitsQuery {
             id: &query.id,
-            token: &query.token
-        })
-        .await?;
+            token: &query.token,
+        },
+    )
+    .await?;
 
-    let events = get_calendar(requester, GetCalendarQuery {
+    let events = get_calendar(
+        requester,
+        GetCalendarQuery {
             id: query.id,
             token: query.token,
             start,
             end,
             view: CalendarView::Month,
-            color_by: query.color_by
-        })
-        .await?;
+            color_by: query.color_by,
+        },
+    )
+    .await?;
 
     Ok(events)
 }

@@ -1,6 +1,6 @@
 pub mod app;
-pub mod utils;
 pub mod routes;
+pub mod utils;
 
 use std::net::SocketAddr;
 use tokio::net::TcpListener;

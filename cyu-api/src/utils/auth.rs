@@ -5,7 +5,7 @@ use tower_cookies::Cookies;
 
 pub struct Auth {
     pub token: String,
-    pub id: String
+    pub id: String,
 }
 
 pub fn get_auth_from_cookies(cookies: &Cookies) -> Option<Auth> {
@@ -19,10 +19,7 @@ impl<S: Send + Sync> FromRequestParts<S> for Auth {
     type Rejection = ();
 
     async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, ()> {
-        let cookies = parts
-            .extract::<Cookies>()
-            .await
-            .map_err(|_| ())?;
+        let cookies = parts.extract::<Cookies>().await.map_err(|_| ())?;
 
         get_auth_from_cookies(&cookies).ok_or(())
     }

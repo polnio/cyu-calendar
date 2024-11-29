@@ -1,11 +1,11 @@
+use crate::app::{App, Encrypter};
 use crate::utils::response::api_error;
 use crate::utils::{ics, Auth};
-use crate::app::{App, Encrypter};
-use axum::{Json, Router};
-use axum::routing::get;
-use axum::response::{IntoResponse, Response};
-use axum::http::{header, StatusCode};
 use axum::extract::{Query, State};
+use axum::http::{header, StatusCode};
+use axum::response::{IntoResponse, Response};
+use axum::routing::get;
+use axum::{Json, Router};
 use cyu_fetcher::{calendar::ColorBy, utils::CyuDate, Fetcher};
 use serde::Deserialize;
 
@@ -36,7 +36,11 @@ async fn get_calendar(
 
     match calendar {
         Ok(calendar) => Json(calendar).into_response(),
-        Err(_) => api_error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve calendar from cyu").into_response()
+        Err(_) => api_error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Failed to retrieve calendar from cyu",
+        )
+        .into_response(),
     }
 }
 
@@ -52,7 +56,7 @@ async fn get_ics_token(
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize)]
 struct GetIcsQuery {
-    token: String
+    token: String,
 }
 
 async fn get_ics(
@@ -72,7 +76,7 @@ async fn get_ics(
     };
     let auth = Auth {
         id: infos.federation_id,
-        token
+        token,
     };
     let Ok(calendar) = ics::generate(&fetcher, auth).await else {
         return (StatusCode::INTERNAL_SERVER_ERROR, "").into_response();
