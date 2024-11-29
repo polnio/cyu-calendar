@@ -5,13 +5,17 @@
   "license": "MIT",
   "targets": {
     "default": {
-      "source": ["./assets/js/main.js", "./assets/js/home.js"],
+      "source": [
+        "./assets/js/main.js",
+        "./assets/js/home.js"
+      ],
       "outputFormat": "global",
       "context": "browser"
     }
   },
   "scripts": {
-    "dev": "parcel watch --no-hmr"
+    "dev": "parcel watch --no-hmr",
+    "build": "parcel build --no-source-maps"
   },
   "devDependencies": {
     "daisyui": "^4.12.10",
