@@ -1,30 +1,29 @@
-use std::collections::HashMap;
+mod home;
+mod login;
+
+use crate::app::{App, TemplateEngine};
+use crate::utils::auth::get_auth_from_cookies;
+use crate::utils::response::{redirect_to_login, AnyhowExt as _};
 use anyhow::Context;
 use axum::extract::{OriginalUri, Query, Request};
 use axum::http::StatusCode;
-use axum::middleware::{self, Next};
+use axum::middleware::Next;
 use axum::response::{Html, IntoResponse, Redirect, Response};
-use axum::Form;
-use axum::{extract::State, routing::get};
-use chrono::{Datelike as _, Days, Months, Weekday};
+use chrono::{Datelike as _, Days, Weekday};
 use cyu_fetcher::utils::CyuDate;
-use cyu_fetcher::Fetcher;
-use derive_more::derive::Display;
+use home::HomeQueryView;
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use tower_cookies::{Cookie, Cookies};
-use crate::utils::auth::get_auth_from_cookies;
-use crate::utils::response::{redirect_to_login, ui_error, AnyhowExt as _};
-use crate::utils::Auth;
-use crate::app::{App, TemplateEngine};
+use login::LoginQuery;
+use serde::Serialize;
+use serde_json::json;
+use std::collections::HashMap;
+use tower_cookies::Cookies;
 
-#[derive(Debug, Deserialize)]
-struct LoginQuery {
-    redirect: Option<String>
-}
-
-pub fn render_template(te: TemplateEngine, name: &str, data: Option<impl Serialize>) -> Result<impl IntoResponse, handlebars::RenderError> {
+pub fn render_template(
+    te: TemplateEngine,
+    name: &str,
+    data: Option<impl Serialize>,
+) -> Result<impl IntoResponse, handlebars::RenderError> {
     let output = if let Some(data) = data {
         te.render(name, &data)
     } else {
@@ -34,10 +33,18 @@ pub fn render_template(te: TemplateEngine, name: &str, data: Option<impl Seriali
     output.map(Html)
 }
 
-pub fn render_template_or_fail(te: TemplateEngine, name: &str, data: Option<impl Serialize>) -> Response {
-    match render_template(te, name, data).with_context(|| format!("Failed to render template '{name}'")) {
+pub fn render_template_or_fail(
+    te: TemplateEngine,
+    name: &str,
+    data: Option<impl Serialize>,
+) -> Response {
+    match render_template(te, name, data)
+        .with_context(|| format!("Failed to render template '{name}'"))
+    {
         Ok(result) => result.into_response(),
-        Err(err) => err.into_api_response(StatusCode::INTERNAL_SERVER_ERROR).into_response()
+        Err(err) => err
+            .into_api_response(StatusCode::INTERNAL_SERVER_ERROR)
+            .into_response(),
     }
 }
 
@@ -45,7 +52,7 @@ async fn check_auth(
     OriginalUri(uri): OriginalUri,
     cookies: Cookies,
     request: Request,
-    next: Next
+    next: Next,
 ) -> Response {
     if get_auth_from_cookies(&cookies).is_none() {
         redirect_to_login(&uri).into_response()
@@ -58,41 +65,12 @@ async fn check_unauth(
     Query(query): Query<LoginQuery>,
     cookies: Cookies,
     request: Request,
-    next: Next
+    next: Next,
 ) -> Response {
     if get_auth_from_cookies(&cookies).is_some() {
-        return Redirect::to(&query.redirect.unwrap_or("/".into())).into_response()
+        return Redirect::to(&query.redirect.unwrap_or("/".into())).into_response();
     }
     next.run(request).await
-}
-
-#[derive(Serialize)]
-struct HomeData {
-    calendar: cyu_fetcher::calendar::GetCalendarResponse,
-    previous_page: String,
-    next_page: String,
-}
-#[derive(Default, Deserialize, Display)]
-#[serde(rename_all = "lowercase")]
-enum HomeQueryView {
-    #[display("month")]
-    Month,
-    #[default]
-    #[display("week")]
-    Week,
-}
-impl Into<cyu_fetcher::calendar::CalendarView> for HomeQueryView {
-    fn into(self) -> cyu_fetcher::calendar::CalendarView {
-        match self {
-            Self::Month => cyu_fetcher::calendar::CalendarView::Month,
-            Self::Week => cyu_fetcher::calendar::CalendarView::Week
-        }
-    }
-}
-#[derive(Deserialize)]
-struct HomeQuery {
-    date: Option<CyuDate>,
-    view: Option<HomeQueryView>
 }
 
 fn default_date_for_view(view: &HomeQueryView) -> CyuDate {
@@ -100,10 +78,19 @@ fn default_date_for_view(view: &HomeQueryView) -> CyuDate {
     match view {
         HomeQueryView::Month => today.with_day(1).unwrap().into(),
         HomeQueryView::Week => match today.weekday() {
-            Weekday::Sat => today.checked_add_days(Days::new(2)).unwrap_or_else(|| *today.clone()).into(),
-            Weekday::Sun => today.checked_add_days(Days::new(1)).unwrap_or_else(|| *today.clone()).into(),
-            weekday => today.checked_sub_days(Days::new(weekday.num_days_from_monday().into())).unwrap().into()
-        }
+            Weekday::Sat => today
+                .checked_add_days(Days::new(2))
+                .unwrap_or_else(|| *today.clone())
+                .into(),
+            Weekday::Sun => today
+                .checked_add_days(Days::new(1))
+                .unwrap_or_else(|| *today.clone())
+                .into(),
+            weekday => today
+                .checked_sub_days(Days::new(weekday.num_days_from_monday().into()))
+                .unwrap()
+                .into(),
+        },
     }
 }
 
@@ -132,116 +119,8 @@ fn set_uri(uri: &str, date: &CyuDate, view: &HomeQueryView) -> String {
     format!("{path}?{new_query}")
 }
 
-async fn home(
-    auth: Auth,
-    cookies: Cookies,
-    OriginalUri(uri): OriginalUri,
-    Query(query): Query<HomeQuery>,
-    State(te): State<TemplateEngine>,
-    State(fetcher): State<Fetcher>
-) -> Response {
-    let uri_string = uri.to_string();
-    let (start, view) = match (query.date, query.view) {
-        (Some(date), Some(view)) => (date, view),
-        (Some(date), None) => {
-            let view = HomeQueryView::default();
-            // return Ok(Redirect::to(&format!("{uri}&view={view}")).into_response())
-            println!("{}, {}", uri, set_uri(&uri_string, &date, &view));
-            return Redirect::to(&set_uri(&uri_string, &date, &view)).into_response()
-        }
-        (None, Some(view)) => {
-            let date = default_date_for_view(&view);
-            // return Ok(Redirect::to(&format!("{uri}&date={date}")).into_response())
-            return Redirect::to(&set_uri(&uri_string, &date, &view)).into_response()
-        }
-        (None, None) => {
-            // let sep = if uri.query().is_some() {'&'} else {'?'};
-            let view = HomeQueryView::default();
-            let date = default_date_for_view(&view);
-            // return Ok(Redirect::to(&format!("{uri}{sep}date={date}&view={view}")).into_response())
-            return Redirect::to(&set_uri(&uri_string, &date, &view)).into_response()
-        }
-    };
-
-    let (previous, next): (CyuDate, CyuDate) = match &view {
-        HomeQueryView::Month => {
-            let previous = start.checked_sub_months(Months::new(1)).unwrap_or_else(|| *start.clone()).into();
-            let next = start.checked_add_months(Months::new(1)).unwrap_or_else(|| *start.clone()).into();
-            (previous, next)
-        }
-        HomeQueryView::Week => {
-            let previous = start.checked_sub_days(Days::new(7)).unwrap_or_else(|| *start.clone()).into();
-            let next = start.checked_add_days(Days::new(7)).unwrap_or_else(|| *start.clone()).into();
-            (previous, next)
-        }
-    };
-
-    let previous_page = set_uri(&uri_string, &previous, &view);
-    let next_page = set_uri(&uri_string, &next, &view);
-
-    let calendar = fetcher
-        .get_all_calendar(cyu_fetcher::calendar::GetAllQuery {
-            id: auth.id,
-            token: auth.token,
-            color_by: cyu_fetcher::calendar::ColorBy::EventCategory,
-        })
-        .await;
-
-    let calendar = match calendar {
-        Ok(calendar) => calendar,
-        Err(cyu_fetcher::Error::Unauthorized) => {
-            cookies.remove(Cookie::from("token"));
-            cookies.remove(Cookie::from("id"));
-            return redirect_to_login(&uri).into_response()
-        },
-        Err(_) => return ui_error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve calendar from cyu".to_owned()).into_response()
-    };
-
-    render_template_or_fail(te, "home", Some(HomeData { calendar, previous_page, next_page }))
-}
-
-async fn login(
-    State(te): State<TemplateEngine>
-) -> Response {
-    render_template_or_fail(te, "login", None::<Value>)
-}
-
-#[derive(Debug, Deserialize)]
-struct LoginHandlePayload {
-    username: String,
-    password: String,
-}
-
-async fn login_handle(
-    cookies: Cookies,
-    Query(query): Query<LoginQuery>,
-    State(fetcher): State<Fetcher>,
-    Form(payload): Form<LoginHandlePayload>
-) -> Response {
-    let token = match fetcher.login(payload.username, payload.password).await {
-        Ok(token) => token,
-        Err(cyu_fetcher::errors::Error::Unauthorized) => return ui_error(StatusCode::UNAUTHORIZED, "Invalid credentials".to_owned()).into_response(),
-        Err(_) => return ui_error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to login to cyu".to_owned()).into_response(),
-    };
-    let infos = match fetcher.get_infos(token.clone()).await {
-        Ok(infos) => infos,
-        Err(_) => return ui_error(StatusCode::INTERNAL_SERVER_ERROR, "Failed to retrieve infos from cyu".to_owned()).into_response(),
-    };
-    cookies.add(Cookie::new("token", token));
-    cookies.add(Cookie::new("id", infos.federation_id));
-    Redirect::to(&query.redirect.unwrap_or("/".into())).into_response()
-}
-
 pub fn routes() -> axum::Router<App> {
-    let authed_routes = axum::Router::new()
-        .route("/", get(home))
-        .layer(middleware::from_fn(check_auth));
-
-    let unauthed_routes = axum::Router::new()
-        .route("/login", get(login).post(login_handle))
-        .layer(middleware::from_fn(check_unauth));
-
     axum::Router::new()
-        .merge(authed_routes)
-        .merge(unauthed_routes)
+        .merge(home::routes())
+        .merge(login::routes())
 }
