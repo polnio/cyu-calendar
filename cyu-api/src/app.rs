@@ -5,10 +5,15 @@ use axum::extract::FromRef;
 use base64::Engine;
 use cyu_fetcher::Fetcher;
 use handlebars::Handlebars;
-use std::{path::PathBuf, sync::Arc};
+use rust_embed::Embed;
+use std::sync::Arc;
 
 pub type TemplateEngine = Arc<Handlebars<'static>>;
 pub type Encrypter = Arc<ics::Encrypter>;
+
+#[derive(Embed)]
+#[folder = "assets/views"]
+struct Views;
 
 fn to_json(
     h: &handlebars::Helper,
@@ -36,23 +41,26 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let mut handlebars = Handlebars::new();
-        // let hbs_path = PathBuf::from(env!("CARGO_PKG_NAME"))
-        //     .join("assets")
-        //     .join("views");
-        let hbs_path = PathBuf::from("assets/views");
+        for path in Views::iter() {
+            if !path.ends_with(".hbs") {
+                continue;
+            }
+            let name = path.split('/').last().unwrap();
+            let name = &name[..name.len() - 4];
+            let content = Views::get(&path).unwrap();
+            let content = match std::str::from_utf8(&content.data) {
+                Ok(content) => content,
+                Err(err) => {
+                    eprintln!("Failed to parse template '{}': {}", name, err);
+                    std::process::exit(1);
+                }
+            };
+            if let Err(err) = handlebars.register_template_string(name, content) {
+                eprintln!("Failed to register template '{}': {}", name, err);
+                std::process::exit(1);
+            }
+        }
 
-        let _ = handlebars
-            .register_template_file("layout", hbs_path.join("layout.hbs"))
-            .map_err(|err| {
-                eprintln!("Failed to register layout template: {}", err);
-                std::process::exit(1);
-            });
-        let _ = handlebars
-            .register_templates_directory(hbs_path.join("pages"), Default::default())
-            .map_err(|err| {
-                eprintln!("Failed to register pages templates: {}", err);
-                std::process::exit(1);
-            });
         handlebars.register_helper("json", Box::new(to_json));
         handlebars.set_dev_mode(true);
         let env = Env::load();

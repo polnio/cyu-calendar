@@ -1,16 +1,14 @@
 pub mod api;
+pub mod assets;
 pub mod ui;
 
 use crate::app::App;
 use tower_cookies::CookieManagerLayer;
-use tower_http::services::ServeDir;
 
 pub fn get() -> axum::Router<App> {
-    // let assets_path = format!("{}/dist", env!("CARGO_PKG_NAME"));
-    let assets_path = "dist";
     axum::Router::new()
         .nest("/", ui::routes())
         .nest("/api", api::routes())
-        .nest_service("/assets", ServeDir::new(assets_path))
+        .nest("/assets", assets::routes())
         .layer(CookieManagerLayer::new())
 }
