@@ -7,8 +7,8 @@ use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() {
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    println!("Listening on http://{addr}");
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
+    println!("Listening on port {}", addr.port());
 
     let app = app::App::new();
 
