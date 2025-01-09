@@ -30,10 +30,8 @@ pub async fn generate(fetcher: &Fetcher, auth: Auth) -> Result<String> {
             .description(&description);
 
         match (event.all_day(), event.end()) {
-            (true, _) => ievent.all_day((**event.start()).into()),
-            (false, Some(end)) => ievent
-                .starts::<chrono::NaiveDateTime>(**event.start())
-                .ends::<chrono::NaiveDateTime>(**end),
+            (true, _) => ievent.all_day(event.start().as_utc().date_naive()),
+            (false, Some(end)) => ievent.starts(event.start().as_utc()).ends(end.as_utc()),
             (false, None) => return None,
         };
 

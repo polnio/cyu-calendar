@@ -12,7 +12,10 @@ impl CyuDate {
         chrono::NaiveDate::from_ymd_opt(year, month, day).map(Self::from)
     }
     pub fn today() -> Self {
-        chrono::Utc::now().date_naive().into()
+        chrono::Utc::now()
+            .with_timezone(&chrono_tz::CET)
+            .date_naive()
+            .into()
     }
 }
 
@@ -22,8 +25,14 @@ impl CyuDateTime {
         let time = chrono::NaiveTime::from_hms_opt(hour, min, sec)?;
         Some(chrono::NaiveDateTime::new(date, time).into())
     }
+    pub fn as_utc(&self) -> chrono::DateTime<chrono::Utc> {
+        self.and_local_timezone(chrono_tz::CET).unwrap().to_utc()
+    }
     pub fn today() -> Self {
-        chrono::Utc::now().naive_local().into()
+        chrono::Utc::now()
+            .with_timezone(&chrono_tz::CET)
+            .naive_local()
+            .into()
     }
 }
 
