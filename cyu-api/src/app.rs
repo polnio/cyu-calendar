@@ -1,6 +1,4 @@
-use crate::utils::ics;
 use crate::utils::Env;
-use aes_gcm::KeyInit as _;
 use axum::extract::FromRef;
 use base64::Engine;
 use cyu_fetcher::Fetcher;
@@ -9,7 +7,7 @@ use rust_embed::Embed;
 use std::sync::Arc;
 
 pub type TemplateEngine = Arc<Handlebars<'static>>;
-pub type Encrypter = Arc<ics::Encrypter>;
+pub type Encrypter = Arc<auth_token::Encrypter>;
 
 #[derive(Embed)]
 #[folder = "assets/views"]
@@ -35,7 +33,7 @@ pub struct App {
     requester: Fetcher,
     template_engine: TemplateEngine,
     // env: Env,
-    encrypter: Arc<ics::Encrypter>,
+    encrypter: Encrypter,
 }
 
 impl App {
@@ -67,7 +65,7 @@ impl App {
         let key = base64::engine::general_purpose::STANDARD
             .decode(env.ics_auth_key)
             .unwrap();
-        let encrypter = ics::Encrypter::new_from_slice(&key).unwrap();
+        let encrypter = auth_token::Encrypter::new(&key).unwrap();
         Self {
             requester: Fetcher::new(),
             template_engine: handlebars.into(),

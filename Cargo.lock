@@ -113,7 +113,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 [[package]]
 name = "auth-token"
 version = "0.1.0"
-source = "git+https://github.com/polnio/auth-token?branch=master#6f347a13389c1089c07d67983b11e97bc209f463"
+source = "git+https://github.com/polnio/auth-token#0aea347ea62a70a4dc5d2e80eb8f713e31ddc43f"
 dependencies = [
  "aes-gcm",
  "base64",
@@ -451,7 +451,6 @@ dependencies = [
 name = "cyu-api"
 version = "0.0.1"
 dependencies = [
- "aes-gcm",
  "anyhow",
  "auth-token",
  "axum 0.8.1",

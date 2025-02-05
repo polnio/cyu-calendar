@@ -6,9 +6,8 @@ description.workspace = true
 edition.workspace = true
 
 [dependencies]
-aes-gcm = "0.10.3"
 anyhow = "1.0.89"
-auth-token = { git = "https://github.com/polnio/auth-token", branch = "master" }
+auth-token = { git = "https://github.com/polnio/auth-token" }
 axum = "0.8"
 base64 = "0.22.1"
 chrono = "0.4.38"

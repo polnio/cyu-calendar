@@ -10,7 +10,7 @@ use cyu_fetcher::Fetcher;
 use serde::{Deserialize, Serialize};
 use tower_cookies::{Cookie, Cookies};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(super) struct LoginPayload {
     pub(super) username: String,
     pub(super) password: String,

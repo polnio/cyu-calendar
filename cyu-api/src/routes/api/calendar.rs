@@ -48,7 +48,7 @@ async fn get_ics_token(
     State(encrypter): State<Encrypter>,
     Json(payload): Json<LoginPayload>,
 ) -> Response {
-    let Ok(token) = ics::encrypt_creds(&encrypter, &payload.username, &payload.password) else {
+    let Ok(token) = encrypter.encrypt(&payload) else {
         return (StatusCode::INTERNAL_SERVER_ERROR, "").into_response();
     };
     token.into_response()
@@ -65,7 +65,7 @@ async fn get_ics(
     // auth: Auth,
     Query(query): Query<GetIcsQuery>,
 ) -> Response {
-    let Ok((username, password)) = ics::decrypt_creds(&encrypter, &query.token) else {
+    let Ok((username, password)) = encrypter.decrypt(&query.token) else {
         return (StatusCode::UNAUTHORIZED, "").into_response();
     };
     let Ok(token) = fetcher.login(username, password).await else {
