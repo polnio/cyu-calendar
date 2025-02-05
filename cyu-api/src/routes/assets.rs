@@ -24,5 +24,5 @@ async fn static_file(uri: Uri) -> impl IntoResponse {
 }
 
 pub fn routes() -> axum::Router<App> {
-    axum::Router::new().route("/*file", get(static_file))
+    axum::Router::new().route("/{*file}", get(static_file))
 }
