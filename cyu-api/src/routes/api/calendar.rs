@@ -1,13 +1,15 @@
-use crate::app::{App, Encrypter};
+use crate::app::{App, Database, Encrypter};
+use crate::utils::body::Body;
 use crate::utils::response::api_error;
 use crate::utils::{ics, Auth};
 use axum::extract::{Query, State};
 use axum::http::{header, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use cyu_fetcher::{calendar::ColorBy, utils::CyuDate, Fetcher};
 use serde::Deserialize;
+use std::ops::Deref;
 
 use super::auth::LoginPayload;
 
@@ -44,14 +46,50 @@ async fn get_calendar(
     }
 }
 
-async fn get_ics_token(
+async fn post_ics_token(
     State(encrypter): State<Encrypter>,
-    Json(payload): Json<LoginPayload>,
+    State(db): State<Database>,
+    auth: Auth,
+    payload: Body<LoginPayload>,
 ) -> Response {
-    let Ok(token) = encrypter.encrypt(&payload) else {
+    let Ok(token) = encrypter.encrypt(payload.deref()) else {
         return (StatusCode::INTERNAL_SERVER_ERROR, "").into_response();
     };
+    let tfp = &token[..12];
+    let result = sqlx::query!(
+        "INSERT INTO icstokens (userid,token) VALUES (?, ?)",
+        auth.id,
+        tfp
+    )
+    .execute(&*db)
+    .await;
+    if let Err(_) = result {
+        return (StatusCode::INTERNAL_SERVER_ERROR, "").into_response();
+    }
     token.into_response()
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize)]
+struct DeleteIcsQuery {
+    token_id: i64,
+}
+
+async fn delete_ics_token(
+    State(db): State<Database>,
+    Query(query): Query<DeleteIcsQuery>,
+    auth: Auth,
+) -> Response {
+    let result = sqlx::query!(
+        "DELETE FROM icstokens WHERE userid = ? AND id = ?",
+        auth.id,
+        query.token_id
+    )
+    .execute(&*db)
+    .await;
+    if let Err(_) = result {
+        return (StatusCode::INTERNAL_SERVER_ERROR, "").into_response();
+    }
+    "".into_response()
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq, Deserialize)]
@@ -88,5 +126,5 @@ pub fn routes() -> Router<App> {
     Router::new()
         .route("/", get(get_calendar))
         .route("/ics", get(get_ics))
-        .route("/ics-token", get(get_ics_token))
+        .route("/ics-token", post(post_ics_token).delete(delete_ics_token))
 }

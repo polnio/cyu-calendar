@@ -1,20 +1,25 @@
+use anyhow::{Context as _, Result};
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Env {
     pub ics_auth_key: String,
+    pub database_url: String,
+}
+
+macro_rules! load_env {
+    ($name:ident) => {
+        std::env::var(stringify!($name)).context(concat!(stringify!($name), " is not set"))?
+    };
 }
 
 impl Env {
-    pub fn load() -> Self {
+    pub fn load() -> Result<Self> {
         if let Err(err) = dotenv::dotenv() {
-            eprintln!("Failed to load .env: {err}");
+            eprintln!("Warning: Failed to load .env: {err}");
         }
-        let ics_auth_key = match std::env::var("ICS_AUTH_KEY") {
-            Ok(ics_auth_key) => ics_auth_key,
-            Err(err) => {
-                eprintln!("Failed to load .env: {err}");
-                std::process::exit(1);
-            }
-        };
-        Self { ics_auth_key }
+        Ok(Self {
+            ics_auth_key: load_env!(ICS_AUTH_KEY),
+            database_url: load_env!(DATABASE_URL),
+        })
     }
 }

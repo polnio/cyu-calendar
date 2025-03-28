@@ -2,27 +2,25 @@ pub mod app;
 pub mod routes;
 pub mod utils;
 
+use anyhow::{Context as _, Result};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     println!("Listening on port {}", addr.port());
 
-    let app = app::App::new();
+    let app = app::App::new()
+        .await
+        .context("Failed to initialize app state")?;
 
-    let listener = match TcpListener::bind(addr).await {
-        Ok(listener) => listener,
-        Err(err) => {
-            eprintln!("Failed to bind listener: {}", err);
-            std::process::exit(1);
-        }
-    };
+    let listener = TcpListener::bind(addr)
+        .await
+        .context("Failed to bind listener")?;
 
-    let result = axum::serve(listener, routes::get().with_state(app).into_make_service()).await;
-    if let Err(err) = result {
-        eprintln!("Failed to run server: {}", err);
-        std::process::exit(1);
-    }
+    axum::serve(listener, routes::get().with_state(app).into_make_service())
+        .await
+        .context("Failed to run server")?;
+    Ok(())
 }

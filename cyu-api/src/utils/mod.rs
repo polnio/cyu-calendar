@@ -1,6 +1,7 @@
 mod env;
 
 pub mod auth;
+pub mod body;
 pub mod ics;
 pub mod response;
 

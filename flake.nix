@@ -60,11 +60,12 @@
           pkgs = import nixpkgs { inherit system; };
         in
         {
-          default = pkgs.mkShell {
+          default = pkgs.mkShell rec {
             nativeBuildInputs = with pkgs; [
               rustc
               cargo
               nodejs
+              sqlx-cli
 
               # CYU GTK
               pkg-config
@@ -72,7 +73,14 @@
               libadwaita
               libsecret
               libshumate
+
+              # CYU API
+              sqlite
+              clang
+              libclang
             ];
+            LD_LIBRARY_PATH = lib.makeLibraryPath nativeBuildInputs;
+            LiBCLANG_PATH = "${pkgs.libclang.lib}/lib";
             PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
             RUST_SRC_PATH = pkgs.rustPlatform.rustLibSrc;
           };

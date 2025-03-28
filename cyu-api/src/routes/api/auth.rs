@@ -10,13 +10,13 @@ use cyu_fetcher::Fetcher;
 use serde::{Deserialize, Serialize};
 use tower_cookies::{Cookie, Cookies};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub(super) struct LoginPayload {
     pub(super) username: String,
     pub(super) password: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 struct LoginResponse {
     success: bool,
 }

@@ -11,12 +11,12 @@ use serde::Deserialize;
 use serde_json::Value;
 use tower_cookies::{Cookie, Cookies};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 pub(super) struct LoginQuery {
     pub(super) redirect: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 struct LoginHandlePayload {
     username: String,
     password: String,

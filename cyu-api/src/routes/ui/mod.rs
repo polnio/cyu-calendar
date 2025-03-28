@@ -1,4 +1,5 @@
 mod home;
+mod links;
 mod login;
 
 use crate::app::{App, TemplateEngine};
@@ -122,5 +123,6 @@ fn set_uri(uri: &str, date: &CyuDate, view: &HomeQueryView) -> String {
 pub fn routes() -> axum::Router<App> {
     axum::Router::new()
         .merge(home::routes())
+        .merge(links::routes())
         .merge(login::routes())
 }

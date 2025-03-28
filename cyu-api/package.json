@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "dev": "parcel watch --no-hmr",
+    "dev": "parcel watch --no-hmr --no-cache",
     "build": "parcel build --no-source-maps"
   },
   "devDependencies": {
