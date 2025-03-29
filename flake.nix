@@ -12,16 +12,7 @@
     }:
     let
       lib = nixpkgs.lib;
-      packages = {
-        cyu-gtk = [
-          {
-            system = "x86_64-linux";
-          }
-        ];
-      };
-
       forAllSystem = lib.genAttrs [ "x86_64-linux" ];
-
       buildPackage = import ./nix/buildPackage.nix;
     in
     {
@@ -42,6 +33,7 @@
                 nativeBuildInputs = with pkgs; [
                   pkg-config
                   wrapGAppsHook
+                  rustPlatform.bindgenHook
                 ];
                 buildInputs = with pkgs; [
                   gtk4
@@ -50,6 +42,30 @@
                   libshumate
                 ];
                 PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+              };
+              cyu-api = buildPackage pkgs rec {
+                pname = "cyu-api";
+                nativeBuildInputs = with pkgs; [
+                  nodejs
+                  pkg-config
+                  rustPlatform.bindgenHook
+                  importNpmLock.npmConfigHook
+                ];
+                buildInputs = with pkgs; [
+                  sqlite
+                  pango
+                ];
+                npmRoot = pname;
+                npmDeps = pkgs.importNpmLock {
+                  npmRoot = ./${pname};
+                };
+                preBuild = ''
+                  cd ${pname}
+                  npm run build
+                  cd ..
+                '';
+                PKG_CONFIG_PATH = "${pkgs.openssl.dev}/lib/pkgconfig";
+                SQLX_OFFLINE = "true";
               };
             }
           );

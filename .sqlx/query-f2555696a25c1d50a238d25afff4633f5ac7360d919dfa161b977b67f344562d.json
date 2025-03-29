@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM icstokens WHERE userid = ? AND id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f2555696a25c1d50a238d25afff4633f5ac7360d919dfa161b977b67f344562d"
+}
