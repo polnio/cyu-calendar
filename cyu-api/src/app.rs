@@ -32,11 +32,11 @@ fn to_json(
 
 #[derive(Clone)]
 pub struct App {
-    requester: Fetcher,
-    template_engine: TemplateEngine,
-    // env: Env,
-    encrypter: Encrypter,
-    database: Database,
+    pub requester: Fetcher,
+    pub template_engine: TemplateEngine,
+    pub env: Env,
+    pub encrypter: Encrypter,
+    pub database: Database,
 }
 
 impl App {
@@ -58,14 +58,14 @@ impl App {
         handlebars.set_dev_mode(true);
         let env = Env::load().context("Failed to load environment variables")?;
         let key = base64::engine::general_purpose::STANDARD
-            .decode(env.ics_auth_key)
+            .decode(&env.ics_auth_key)
             .unwrap();
         let encrypter = auth_token::Encrypter::new(&key).unwrap();
         let database = sqlx::SqlitePool::connect(&env.database_url).await.unwrap();
         Ok(Self {
             requester: Fetcher::new(),
             template_engine: handlebars.into(),
-            // env: Env::load(),
+            env,
             encrypter: encrypter.into(),
             database: database.into(),
         })
@@ -81,6 +81,12 @@ impl FromRef<App> for Fetcher {
 impl FromRef<App> for TemplateEngine {
     fn from_ref(app: &App) -> Self {
         app.template_engine.clone()
+    }
+}
+
+impl FromRef<App> for Env {
+    fn from_ref(app: &App) -> Self {
+        app.env.clone()
     }
 }
 

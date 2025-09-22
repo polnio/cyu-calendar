@@ -2,6 +2,7 @@ use anyhow::{Context as _, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Env {
+    pub port: u16,
     pub ics_auth_key: String,
     pub database_url: String,
 }
@@ -18,6 +19,7 @@ impl Env {
             eprintln!("Warning: Failed to load .env: {err}");
         }
         Ok(Self {
+            port: load_env!(PORT).parse()?,
             ics_auth_key: load_env!(ICS_AUTH_KEY),
             database_url: load_env!(DATABASE_URL),
         })

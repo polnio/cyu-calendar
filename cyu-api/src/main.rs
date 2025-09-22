@@ -8,12 +8,12 @@ use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    println!("Listening on port {}", addr.port());
-
     let app = app::App::new()
         .await
         .context("Failed to initialize app state")?;
+
+    let addr = SocketAddr::from(([0, 0, 0, 0], app.env.port));
+    println!("Listening on port {}", addr.port());
 
     let listener = TcpListener::bind(addr)
         .await
