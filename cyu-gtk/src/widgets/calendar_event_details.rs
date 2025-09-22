@@ -1,4 +1,4 @@
-use crate::utils::calendar_event::{parse_description, Event};
+use crate::utils::calendar_event::Event;
 use crate::widgets::calendar_event_map::CalendarEventMap;
 use relm4::{adw::prelude::*, prelude::*};
 use relm4::{ComponentParts, ComponentSender, SimpleComponent};
@@ -45,7 +45,7 @@ impl SimpleComponent for CalendarEventDetailsWidget {
                             #[watch]
                             set_subtitle: &model.event
                                 .as_ref()
-                                .map(|event| parse_description(event.description()))
+                                .map(|event| event.description())
                                 .unwrap_or_default(),
                             add_css_class: "property",
                         },

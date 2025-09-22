@@ -1,8 +1,9 @@
-use errors::Error;
-
 pub mod auth;
 pub mod calendar;
 pub mod errors;
+pub mod utils;
+
+pub use errors::Error;
 
 #[derive(Clone)]
 pub struct Fetcher {
@@ -32,5 +33,19 @@ impl Fetcher {
         query: calendar::GetCalendarQuery,
     ) -> Result<calendar::GetCalendarResponse, Error> {
         calendar::get_calendar(&self.requester, query).await
+    }
+
+    pub async fn get_calendar_limits(
+        &self,
+        query: calendar::GetLimitsQuery<'_>,
+    ) -> Result<calendar::GetLimitsResponse, Error> {
+        calendar::get_limits(&self.requester, query).await
+    }
+
+    pub async fn get_all_calendar(
+        &self,
+        query: calendar::GetAllQuery,
+    ) -> Result<calendar::GetCalendarResponse, Error> {
+        calendar::get_all(&self.requester, query).await
     }
 }

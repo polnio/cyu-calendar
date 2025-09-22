@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO icstokens (userid,token) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "49edfc0264f3e4be9a0d5a6d02be0e0c9d7829b027f43ccccc8155c8cd2dd709"
+}
