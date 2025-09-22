@@ -7,7 +7,8 @@
     "default": {
       "source": [
         "./assets/js/main.js",
-        "./assets/js/home.js"
+        "./assets/js/home.js",
+        "./assets/js/links.js"
       ],
       "outputFormat": "global",
       "context": "browser"

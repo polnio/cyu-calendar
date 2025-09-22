@@ -1,13 +1,18 @@
 {{#> layout }}
+{{#* inline "head"}}
+<script src="assets/links.js" defer></script>
+{{/inline}}
 <div class="container mx-auto">
   <dialog class="modal" id="createTokenDialog">
-    <form action="/api/calendar/ics-token" method="post" class="card bg-base-100 p-8" up-submit>
+    <form method="post" class="card bg-base-100 p-8">
       <input type="text" name="username" placeholder="Identifiant" class="input input-bordered" />
       <input type="password" name="password" placeholder="Mot de passe" class="input input-bordered" />
       <button type="submit" class="btn btn-primary">Créer un lien</button>
     </form>
   </dialog>
-  <pre>{{{json tokens }}}</pre>
+  <div role="alert" class="alert hidden">
+    <span></span>
+  </div>
   <h1 class="text-3xl">Liens</h1>
   <button onclick="createTokenDialog.showModal()" class="btn btn-primary">Créer un lien</button>
   <table class="table">
@@ -24,7 +29,7 @@
         <th>{{@index}}</th>
         <td>{{this.token}}...</td>
         <td>
-          <a href="/api/calendar/ics-token?token_id={{this.id}}" up-follow up-method="delete">Supprimer</a>
+          <button class="delete-token" data-id="{{this.id}}">Supprimer</button>
         </td>
       </tr>
       {{/each}}
