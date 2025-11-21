@@ -6,8 +6,6 @@ use anyhow::{Context as _, Result};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 
-use tokio::net::TcpListener;
-
 #[tokio::main]
 async fn main() -> Result<()> {
     let app = app::App::new()

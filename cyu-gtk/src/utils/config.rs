@@ -4,8 +4,7 @@ use once_cell::sync::Lazy;
 use std::sync::RwLock;
 
 pub static CONFIG: Lazy<RwLock<Config>> = Lazy::new(|| {
-    let dirs =
-        xdg::BaseDirectories::with_prefix(APP_SHORT_ID).expect("failed to get xdg directories");
+    let dirs = xdg::BaseDirectories::with_prefix(APP_SHORT_ID);
     let file_path = dirs
         .place_config_file("config.toml")
         .expect("failed to resolve config file path");
